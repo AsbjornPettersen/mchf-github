@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{92B34F1B-0C2F-4A5D-89DD-B2C8E0A33C84}</ProjectGuid>
+    <ProjectGuid>{ABC17CDF-7505-43D4-8641-3F66306B6300}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>serialtest</RootNamespace>
+    <RootNamespace>cattest</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -88,14 +88,14 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\misc\v_eprom;..\..\drivers\ui;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc;..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Core\Inc;..\..\misc\v_eprom;..\..\drivers\ui;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio\softdds;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>E:\rel\googletest-master\googletest-master\googletest\msvc\gtest\Debug</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gtestd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gtestd.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>\rel\googletest-master\googletest-master\googletest\msvc\gtest\Debug</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -105,14 +105,10 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\radio\mchf-github_ap\mchf-eclipse\misc\v_eprom;E:\radio\mchf-github_ap\mchf-eclipse\drivers\ui;E:\radio\mchf-github_ap\mchf-eclipse\drivers\ui\lcd;E:\radio\mchf-github_ap\mchf-eclipse\drivers\ui\oscillator;E:\radio\mchf-github_ap\mchf-eclipse\drivers\audio;E:\radio\mchf-github_ap\mchf-eclipse\drivers\freedv;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Drivers\CMSIS\Include;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Inc;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;E:\radio\mchf-github_ap\mchf-eclipse\hardware;E:\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>E:\rel\googletest-master\googletest-master\googletest\msvc\gtest\Debug</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gtestd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -124,7 +120,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\misc\v_eprom;..\..\drivers\ui;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc;..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Core\Inc;..\..\misc\v_eprom;..\..\drivers\ui;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio\softdds;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -132,8 +128,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>gtest.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>\rel\googletest-master\googletest-master\googletest\msvc\gtest\Release</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -145,20 +141,16 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\radio\mchf-github_ap\mchf-eclipse\misc\v_eprom;E:\radio\mchf-github_ap\mchf-eclipse\drivers\ui;E:\radio\mchf-github_ap\mchf-eclipse\drivers\ui\lcd;E:\radio\mchf-github_ap\mchf-eclipse\drivers\ui\oscillator;E:\radio\mchf-github_ap\mchf-eclipse\drivers\audio;E:\radio\mchf-github_ap\mchf-eclipse\drivers\freedv;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Drivers\CMSIS\Include;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Inc;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;E:\radio\mchf-github_ap\mchf-eclipse\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;E:\radio\mchf-github_ap\mchf-eclipse\hardware;E:\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>E:\rel\googletest-master\googletest-master\googletest\msvc\gtest\Release</AdditionalLibraryDirectories>
-      <AdditionalDependencies>gtest.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="serialtest.cpp" />
+    <ClCompile Include="cattest.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
