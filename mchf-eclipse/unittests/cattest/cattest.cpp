@@ -82,17 +82,38 @@ TEST(SerialepromTest, addr)
 #endif
 }
  
- 
+class fillcat
+{
+public:
+  void set_freq()
+  {
+    uint8_t c = 0;
+    int st = CatDriver_InterfaceBufferAddData(c);
+    st = CatDriver_InterfaceBufferAddData(c);
+    st = CatDriver_InterfaceBufferAddData(c);
+    st = CatDriver_InterfaceBufferAddData(c);
+    st = CatDriver_InterfaceBufferAddData(FT817_SET_FREQ);
+  };
+};
+
 int main(int argc, char **argv) 
 {
+  printf ("sizeof(ft871_settings_t) =%d\n",sizeof(ft871_settings_t));
+  
   bool ok = CatDriver_CloneInStart();
   hUsbDeviceFS.dev_state = USBD_STATE_CONFIGURED;
 
-   for  (int i = 0; i < 6; i++)
-     {
-       uint8_t c = 1;
-       int st = CatDriver_InterfaceBufferAddData(c);
-     }
+  fillcat fc;
+  fc.set_freq();
+#if 0
+  for  (int i = 0; i < 6; i++)
+    {
+      uint8_t c = 1;
+      int st = CatDriver_InterfaceBufferAddData(c);
+    }
+#endif
+  CatDriver_HandleProtocol();
+  CatDriver_HandleProtocol();
   CatDriver_HandleProtocol();
   CatDriver_HandleProtocol();
   CatDriver_HandleProtocol();
