@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include <stdio.h>
 
 //#define __GNUC__
 //#define __CSMC__
@@ -81,21 +82,332 @@ TEST(SerialepromTest, addr)
   uint8_t se = SerialEEPROM_24Cxx_Detect();
 #endif
 }
- 
-class fillcat
+
+
+#if 1
+void CatDriver_ft817_HandleProtocol()
+{
+  uint8_t bc = 0;
+  uint8_t resp[32];
+          
+  while (CatDriver_InterfaceBufferGetData(ft817.req,5))
+    {
+#ifdef DEBUG_FT817
+      int debug_idx;
+      for (debug_idx = 0; debug_idx < 5 && ft817.cmd_cntr < FT817_MAX_CMD; debug_idx++ )
+	{
+	  ft817.reqs[ft817.cmd_cntr*5+debug_idx] = ft817.req[debug_idx];
+	}
+      ft817.cmd_cntr++;
+#endif
+      
+      switch((Ft817_CatCmd_t)ft817.req[4])
+	{
+	case FT817_SET_FREQ:
+	  {
+	    ulong f = 0;
+	    ulong fdelta;
+	    
+	    if(ts.xlat == 0)
+	      {
+		fdelta = (ts.tx_audio_source == TX_AUDIO_DIGIQ)?AudioDriver_GetTranslateFreq()*4:0;
+		// If we are in DIGITAL IQ Output mode, use real tune frequency frequency instead
+		// translated RX frequency
+	      }
+	    else
+	      {
+		fdelta = 0;
+	      }
+	    
+	    int fidx;
+	    for (fidx = 0; fidx < 4; fidx++)
+	      {
+		f *= 100;
+		f +=  (ft817.req[fidx] >> 4) * 10 + (ft817.req[fidx] & 0x0f);
+	      }
+	    f *= TUNE_MULT*10;
+	    df.tune_new = f - fdelta;
+	    
+	    resp[0] = 0;
+	    bc = 1;
+	    if(ts.flags1 & FLAGS1_CAT_IN_SANDBOX)			// if running in sandbox store active band
+	      {
+		ts.cat_band_index = ts.band;
+	      }
+	  }
+	  break;
+	  
+	case FT817_GET_FREQ:
+	  {
+	    ulong fdelta;
+	    
+	    if(ts.xlat == 0)
+	      {
+		fdelta = (ts.tx_audio_source == TX_AUDIO_DIGIQ)?AudioDriver_GetTranslateFreq()*TUNE_MULT:0;
+		// If we are in DIGITAL IQ Output mode, send real tune frequency frequency instead
+		// translated RX frequency
+	      }
+	    else
+	      {
+		fdelta = 0;
+	      }
+	    
+	    ulong f = (df.tune_new + fdelta  + (TUNE_MULT*10/2))/ (TUNE_MULT*10);
+	    ulong fbcd = 0;
+	    int fidx;
+	    for (fidx = 0; fidx < 8; fidx++)
+	      {
+		fbcd >>= 4;
+		fbcd |= (f % 10) << 28;
+		f = f / 10;
+	      }
+	    
+	    resp[0] = (uint8_t)(fbcd >> 24);
+	    resp[1] = (uint8_t)(fbcd >> 16);
+	    resp[2] = (uint8_t)(fbcd >> 8);
+	    resp[3] = (uint8_t)fbcd;
+	  }
+	  switch(ts.dmod_mode)
+	    {
+	    case DEMOD_LSB:
+	      resp[4] = 0;
+	      break;
+	    case DEMOD_USB:
+	      resp[4] = 1;
+	      break;
+	    case DEMOD_CW:
+	      resp[4] = 2 + (ts.cw_lsb==true?1:0);
+	      break;
+	      // return 3 if CW in LSB aka CW-R
+	    case DEMOD_SAM:
+	    case DEMOD_AM:
+	      resp[4] = 4;
+	      break;
+	    case DEMOD_FM:
+	      resp[4] = 8;
+	      break;
+	    default:
+	      resp[4] = 1;
+	    }
+	  bc = 5;
+	  break;
+	case 7: /* set mode */
+	  {
+	    uint32_t new_mode = ts.dmod_mode;
+	    uint32_t new_lsb = ts.cw_lsb;
+	    switch (ft817.req[0])
+	      {
+	      case 0: // LSB
+		new_mode = DEMOD_LSB;
+		break;
+	      case 1: // USB
+		new_mode = DEMOD_USB;
+		break;
+	      case 2: // CW
+		new_lsb = false;
+		new_mode = DEMOD_CW;
+		break;
+	      case 3: // CW-R
+		new_lsb = true;
+		new_mode = DEMOD_CW;
+		break;
+	      case 4: // AM
+		new_mode = DEMOD_AM;
+		break;
+	      case 8: // FM
+	      case 0x88: // FM-N
+		new_mode = DEMOD_FM;
+		break;
+	      case 0x0a: // DIG - SSB, side band controlled by some menu configuration in ft817, we use USB here
+		new_mode = DEMOD_USB;
+		break;
+	      case 0x0c: // PKT - FM, 9k6
+		new_mode = DEMOD_FM;
+		break;
+	      }
+	    if  (new_mode != ts.dmod_mode || new_lsb != ts.cw_lsb )
+	      {
+		if(ts.flags1 & FLAGS1_CAT_IN_SANDBOX)			// if running in sandbox store active band
+		  {
+		    ts.cat_band_index = ts.band;
+		  }
+		ts.cw_lsb = new_lsb;
+		RadioManagement_SetDemodMode(new_mode);
+		UiDriver_UpdateDisplayAfterParamChange();
+	      }
+	  }
+	  break;
+	case FT817_PTT_ON:
+	  resp[0] = cat_driver.cat_ptt_active?0xF0:0x00;
+	  /* 0xF0 if PTT was already on */
+	  
+	  if(RadioManagement_IsTxDisabled() == false)
+	    {
+	      ts.ptt_req = true;
+	      cat_driver.cat_ptt_active = true;
+	    }
+	  
+	  bc = 1;
+	  break;
+	case FT817_PWR_ON:
+	  resp[0] = 0;
+	  bc = 1;
+	  break;
+	case FT817_TOGGLE_VFO:
+	  UiDriver_ToggleVfoAB();
+	  resp[0] = 0;
+	  bc = 1;
+	  break;
+	case FT817_SPLIT_ON:
+	  UiDriver_SetSplitMode(true);
+	  resp[0] = 0;
+	  bc = 1;
+	  break;
+	case FT817_SPLIT_OFF:
+	  UiDriver_SetSplitMode(false);
+	  resp[0] = 0;
+	  bc = 1;
+	  break;
+	case FT817_PTT_OFF:
+	  resp[0] = cat_driver.cat_ptt_active?0x00:0xF0; /* 0xF0 if PTT was already off */
+	  ts.ptt_req = false;
+	  cat_driver.cat_ptt_active = false;
+	  bc = 1;
+	  break;
+	case FT817_A7: /* A7 */
+	  resp[0]=0xA7;
+	  resp[1]=0x02;
+	  resp[2]=0x00;
+	  resp[3]=0x04;
+	  resp[4]=0x67;
+	  resp[5]=0xD8;
+	  resp[6]=0xBF;
+	  resp[7]=0xD8;
+	  resp[8]=0xBF;
+	  bc = 9;
+	  break;
+	case FT817_EEPROM_READ:
+	  resp[0]=0x00;
+	  resp[1]=0x00;
+	  resp[2]=0x00;
+	  resp[3]=0x00;
+	  bc = 4;
+	  break;
+	case FT817_EEPROM_WRITE:
+	  resp[0] = 0;
+	  bc = 1;
+	  break;
+	case FT817_READ_TX_STATE:
+	  if(RadioManagement_IsTxDisabled()||(ts.txrx_mode != TRX_MODE_TX))
+	    {
+	      resp[0] = 0;
+	    }
+	  else
+	    {
+	      resp[0] =((uint8_t)round(swrm.fwd_pwr)<<4)+(uint8_t)round(swrm.vswr_dampened);
+	    }
+	  bc = 1;
+	  break;
+	case FT817_READ_RX_STATE: /* E7 */
+	  resp[0] = (uint8_t)round(sm.s_count*0.5);	//S-Meter signal
+	  bc = 1;
+	  break;
+	case FT817_PTT_STATE:
+	  // FT-817 responds 0xFF if not TX and 0x00 if TX
+	  // This differs from KA7OEI description but has been verified
+	  // with the real thing.
+	  resp[0]=ts.txrx_mode == TRX_MODE_TX?0x00:0xFF;
+	  if(RadioManagement_IsTxDisabled())
+	    {
+	      resp[0] =0xFF;
+	    }
+	  bc = 1;
+	  break;
+	case 255: /* FF sent out by HRD */
+	  break;
+	  // default:
+	  // while (1);
+	}
+    }
+  CatDriver_InterfaceBufferPutData(resp,bc);
+  /* Return data back */
+}
+#endif
+
+
+
+const char *clonein_state_cstr()
+{ 
+  switch (ft817.clonein_state)
+    {
+    case CLONEIN_INIT:
+      return "CLONEIN_INIT";
+    case CLONEIN_BLOCK_RECV_START:
+      return "CLONEIN_BLOCK_RECV_START";
+    case CLONEIN_BLOCK_RECV:
+      return "CLONEIN_BLOCK_RECV";
+    case CLONEIN_FINAL_PROCESSING:
+      return "CLONEIN_FINAL_PROCESSING";
+    case CLONEIN_DONE:
+      return "CLONEIN_DONE";
+    default:
+      return "CLONEIN_????";
+    }
+}
+
+class fill_ft817
 {
 public:
-  void set_freq()
+  bool filldata(const Ft817_CatCmd_t cmd)
   {
-    uint8_t c = 0;
-    int st = CatDriver_InterfaceBufferAddData(c);
-    st = CatDriver_InterfaceBufferAddData(c);
-    st = CatDriver_InterfaceBufferAddData(c);
-    st = CatDriver_InterfaceBufferAddData(c);
-    st = CatDriver_InterfaceBufferAddData(FT817_SET_FREQ);
+    uint8_t buf[256];
+    memset(buf, 0x00, sizeof(buf));
+    buf[4]  = (uint8_t) cmd;
+    for (unsigned int i = 0; i < 5; i++)
+      {
+	uint8_t c = buf[i];
+	int st = CatDriver_InterfaceBufferAddData(c);
+      }
+    return true;
+  }
+};
+
+class fillclone
+{
+public:
+  unsigned int blockno = 0;
+  unsigned int ind = 0;
+  uint8_t count = 0;
+public:
+  bool filldata()
+  {
+    if (ind >= 11)
+      return false;
+
+    if (count == 0)
+      count = cloneblock_len[ind].count; 
+    unsigned int len = cloneblock_len[ind].len + 2; 
+    uint8_t buf[256];
+    memset(buf, 0x00, sizeof(buf));
+    
+    buf[0]  = (uint8_t) blockno;
+    buf[len-1]  = CatDriver_Clone_Checksum(&buf[1],len-2);
+    for (unsigned int i = 0; i < len; i++)
+      {
+	uint8_t c = buf[i];
+	int st = CatDriver_InterfaceBufferAddData(c);
+      }
+    count --;
+    if (count == 0)
+      {
+	ind ++;
+      }
+    blockno++;
+    return true;
   };
 };
 
+    //    st = CatDriver_InterfaceBufferAddData(FT817_SET_FREQ);
 int main(int argc, char **argv) 
 {
   printf ("sizeof(ft871_settings_t) =%d\n",sizeof(ft871_settings_t));
@@ -103,20 +415,29 @@ int main(int argc, char **argv)
   bool ok = CatDriver_CloneInStart();
   hUsbDeviceFS.dev_state = USBD_STATE_CONFIGURED;
 
-  fillcat fc;
-  fc.set_freq();
-#if 0
-  for  (int i = 0; i < 6; i++)
+  fillclone fc;
+  fc.filldata();
+#if 1
+  for  (int i = 0; i < 6000; i++)
     {
-      uint8_t c = 1;
-      int st = CatDriver_InterfaceBufferAddData(c);
+      if (ft817.state == CAT_CAT)
+	{
+	  printf (" CAT_CAT in=%s fc.ind=%d count=%d\n",clonein_state_cstr(), fc.ind, fc.count);
+	  fill_ft817 f8;
+	  f8.filldata(FT817_SET_FREQ);
+	  f8.filldata(FT817_GET_FREQ);
+	  CatDriver_ft817_HandleProtocol();
+	}
+      CatDriver_HandleProtocol();
+      uint8_t bytes = CatDriver_InterfaceBufferHasData();
+      printf ("bytes =%d in=%s fc.ind=%d count=%d\n",bytes, clonein_state_cstr(), fc.ind, fc.count);
+      if (bytes == 0)
+	{
+	  bool ok = fc.filldata();
+	}
     }
 #endif
-  CatDriver_HandleProtocol();
-  CatDriver_HandleProtocol();
-  CatDriver_HandleProtocol();
-  CatDriver_HandleProtocol();
-  CatDriver_HandleProtocol();
+
   CatDriver_HandleProtocol();
 
   ::testing::InitGoogleTest(&argc, argv);
