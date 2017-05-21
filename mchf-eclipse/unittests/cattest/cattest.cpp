@@ -46,8 +46,6 @@ struct SMeter volatile sm;
 USBD_HandleTypeDef hUsbDeviceFS;
 
 __IO CdcVcp_CtrlLines_t  cdcvcp_ctrllines;
-//I2C_HandleTypeDef hi2c2;
-
 
 struct TransceiverState volatile ts;
 #endif
@@ -355,19 +353,51 @@ const char *clonein_state_cstr()
     }
 }
 
-class fill_ft817
+class fill_buf
+{
+public:
+  uint8_t buf[256];
+  fill_buf()
+  {
+    memset(buf, 0x00, sizeof(buf));
+  };
+  bool add (const unsigned int len)
+  {
+     for (unsigned int i = 0; i < len; i++)
+      {
+	uint8_t c = buf[i];
+	int st = CatDriver_InterfaceBufferAddData(c);
+	if (st != 1)
+	  return false;
+      }
+     return true;
+  };
+};
+
+TEST(FillBuftest, fill_buf) 
+{
+  fill_buf t;
+  EXPECT_EQ (true, t.add(1));
+  uint32_t bufsz = CatDriver_InterfaceBufferHasData();
+  EXPECT_EQ (1, bufsz);
+  EXPECT_EQ (true, t.add(254));
+  EXPECT_EQ (255, CatDriver_InterfaceBufferHasData());
+  EXPECT_EQ (false, t.add(1));
+  EXPECT_EQ (255, CatDriver_InterfaceBufferHasData());
+  cat_buffer_reset();
+  EXPECT_EQ (0, CatDriver_InterfaceBufferHasData());
+  EXPECT_EQ (true, t.add(255));
+  EXPECT_EQ (255, CatDriver_InterfaceBufferHasData());
+}
+
+class fill_ft817 
 {
 public:
   bool filldata(const Ft817_CatCmd_t cmd)
   {
-    uint8_t buf[256];
-    memset(buf, 0x00, sizeof(buf));
-    buf[4]  = (uint8_t) cmd;
-    for (unsigned int i = 0; i < 5; i++)
-      {
-	uint8_t c = buf[i];
-	int st = CatDriver_InterfaceBufferAddData(c);
-      }
+    fill_buf b;   
+    b.buf[4]  = (uint8_t) cmd;
+    b.add(5);
     return true;
   }
 };
@@ -386,17 +416,12 @@ public:
 
     if (count == 0)
       count = cloneblock_len[ind].count; 
-    unsigned int len = cloneblock_len[ind].len + 2; 
-    uint8_t buf[256];
-    memset(buf, 0x00, sizeof(buf));
-    
-    buf[0]  = (uint8_t) blockno;
-    buf[len-1]  = CatDriver_Clone_Checksum(&buf[1],len-2);
-    for (unsigned int i = 0; i < len; i++)
-      {
-	uint8_t c = buf[i];
-	int st = CatDriver_InterfaceBufferAddData(c);
-      }
+    unsigned int len = cloneblock_len[ind].len + 2;
+    fill_buf b;      
+    b.buf[0]  = (uint8_t) blockno;
+    b.buf[len-1]  = CatDriver_Clone_Checksum(&b.buf[1],len-2);
+    b.add(len);
+
     count --;
     if (count == 0)
       {
@@ -407,10 +432,12 @@ public:
   };
 };
 
-    //    st = CatDriver_InterfaceBufferAddData(FT817_SET_FREQ);
 int main(int argc, char **argv) 
 {
   printf ("sizeof(ft871_settings_t) =%d\n",sizeof(ft871_settings_t));
+
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
   
   bool ok = CatDriver_CloneInStart();
   hUsbDeviceFS.dev_state = USBD_STATE_CONFIGURED;
