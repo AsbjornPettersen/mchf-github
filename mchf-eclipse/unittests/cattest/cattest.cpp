@@ -31,7 +31,15 @@ int __QADD(int i, int b) { return 0; }
 int __QSUB(int i, int b) { return 0; }
 
 #if 1
-uint8_t CDC_Transmit_FS(uint8_t* Buf,uint32_t Len) { return 0; }
+static uint32_t total_transmitt_Len = 0;
+ 
+uint8_t CDC_Transmit_FS(uint8_t* Buf,uint32_t Len) 
+{
+  total_transmitt_Len += Len;
+  printf ("Transmitt %d : %d\n",Len,total_transmitt_Len);
+
+  return 0; 
+}
 
 #include "../../drivers/cat/cat_driver.c"
 
@@ -286,10 +294,7 @@ void CatDriver_ft817_HandleProtocol()
 	  break;
 	case FT817_EEPROM_READ:
 	  resp[0]=0x00;
-	  resp[1]=0x00;
-	  resp[2]=0x00;
-	  resp[3]=0x00;
-	  bc = 4;
+	  bc = 1;
 	  break;
 	case FT817_EEPROM_WRITE:
 	  resp[0] = 0;
@@ -334,24 +339,70 @@ void CatDriver_ft817_HandleProtocol()
 
 
 
-const char *clonein_state_cstr()
-{ 
-  switch (ft817.clonein_state)
-    {
-    case CLONEIN_INIT:
-      return "CLONEIN_INIT";
-    case CLONEIN_BLOCK_RECV_START:
-      return "CLONEIN_BLOCK_RECV_START";
-    case CLONEIN_BLOCK_RECV:
-      return "CLONEIN_BLOCK_RECV";
-    case CLONEIN_FINAL_PROCESSING:
+
+class ft817c
+{
+  struct FT817 *ft817p;
+public:
+  ft817c(struct FT817 *p)
+  {
+    ft817p = p;
+  };
+  const char *state_cstr() const
+  { 
+    switch (ft817p->state)
+      {
+      case CAT_INIT:
+	return "CAT_INIT";
+      case CAT_CAT:
+	return "CAT_CAT";
+      case CAT_CLONEOUT:
+	return "CAT_CLONEOUT";
+      case CAT_CLONEIN:
+	return "CAT_CLONEIN";
+      default:
+	return "CAT_????";
+      };
+  }; 
+
+  const char *clonein_state_cstr() const
+  { 
+    switch (ft817p->clonein_state)
+      {
+      case CLONEIN_INIT:
+	return "CLONEIN_INIT";
+      case CLONEIN_BLOCK_RECV_START:
+	return "CLONEIN_BLOCK_RECV_START";
+      case CLONEIN_BLOCK_RECV:
+	return "CLONEIN_BLOCK_RECV";
+      case CLONEIN_FINAL_PROCESSING:
       return "CLONEIN_FINAL_PROCESSING";
-    case CLONEIN_DONE:
-      return "CLONEIN_DONE";
-    default:
-      return "CLONEIN_????";
-    }
-}
+      case CLONEIN_DONE:
+	return "CLONEIN_DONE";
+      default:
+	return "CLONEIN_????";
+      };
+  };
+  const char *cloneout_state_cstr() const
+  { 
+    switch (ft817p->cloneout_state)
+      {
+      case CLONEOUT_INIT:
+	return "CLONEOUT_INIT";
+      case CLONEOUT_BLOCK_SEND:
+	return "CLONEOUT_BLOCK_SEND";
+      case CLONEOUT_BLOCK_ACK_WAIT:
+	  return "CLONEOUT_BLOCK_ACK_WAIT";
+      case CLONEOUT_BLOCK_ACK_NACK:
+	  return "CLONEOUT_BLOCK_ACK_NACK";
+      case CLONEOUT_DONE:
+	  return "CLONEOUT_DONE";
+      default:
+	return "CLONEOUT_????";
+      };
+  };        
+    
+};
 
 class fill_buf
 {
@@ -374,8 +425,70 @@ public:
   };
 };
 
+class fill_ft817 
+{
+  std::vector<Ft817_CatCmd_t>::const_iterator it;
+public:
+  std::vector<Ft817_CatCmd_t> v = 
+    {
+      FT817_SET_FREQ,
+      FT817_GET_FREQ,
+      FT817_SPLIT_ON,
+      FT817_SPLIT_OFF,
+      FT817_PTT_ON,
+      FT817_PTT_OFF,
+      FT817_MODE_SET,
+      FT817_PWR_ON,
+      FT817_TOGGLE_VFO,
+      FT817_A7,
+      FT817_EEPROM_READ,
+      FT817_EEPROM_WRITE,
+      FT817_READ_TX_STATE,
+      FT817_READ_RX_STATE,
+      FT817_PTT_STATE,
+      FT817_NOOP
+    };
+public:
+  fill_ft817 ()
+  {
+    it = v.cbegin();
+  };
+  bool filldata(const Ft817_CatCmd_t cmd) const
+  {
+    fill_buf b;   
+    b.buf[4]  = (uint8_t) cmd;
+    b.add(5);
+    printf ("filldata 0x%x\n",cmd);
+    return true;
+  };
+  bool filldata_loop()
+  {
+    bool ok = filldata(*it);
+    it++;
+    if (it == v.cend())
+      it = v.cbegin();
+    return ok;
+  };
+};
+
+class global_data
+{
+public:
+  global_data()
+  {
+    reset_all();
+  };
+  void reset_all()
+  {
+    cat_buffer_reset(); // input buffer
+    total_transmitt_Len = 0;  // output sent
+  };
+};
+
 TEST(FillBuftest, fill_buf) 
 {
+  global_data glb;
+
   fill_buf t;
   EXPECT_EQ (true, t.add(1));
   uint32_t bufsz = CatDriver_InterfaceBufferHasData();
@@ -388,19 +501,31 @@ TEST(FillBuftest, fill_buf)
   EXPECT_EQ (0, CatDriver_InterfaceBufferHasData());
   EXPECT_EQ (true, t.add(255));
   EXPECT_EQ (255, CatDriver_InterfaceBufferHasData());
+  
+  glb.reset_all();
 }
 
-class fill_ft817 
+TEST(FillBuftest, allcommands) 
 {
-public:
-  bool filldata(const Ft817_CatCmd_t cmd)
-  {
-    fill_buf b;   
-    b.buf[4]  = (uint8_t) cmd;
-    b.add(5);
-    return true;
-  }
-};
+  global_data glb;
+
+  fill_ft817 t;
+  for (auto i = t.v.cbegin(); i != t.v.cend(); i++)
+    {
+      bool ok = t.filldata(*i);
+      EXPECT_EQ (true, ok);
+      uint32_t prev = total_transmitt_Len;
+      // CatDriver_HandleProtocol();  have eat data!
+      CatDriver_ft817_HandleProtocol();
+      printf ("ts.tx_disable=0x%x  CatDriver_CatPttActive()=%d \n",ts.tx_disable, CatDriver_CatPttActive());
+      uint32_t Len = total_transmitt_Len - prev; 
+      if (*i == FT817_MODE_SET) // error !!
+	continue;
+      if (*i == FT817_NOOP) // well
+	continue;
+      EXPECT_GT(Len,0);
+    }
+}
 
 class fillclone
 {
@@ -434,33 +559,45 @@ public:
 
 int main(int argc, char **argv) 
 {
-  printf ("sizeof(ft871_settings_t) =%d\n",sizeof(ft871_settings_t));
+  global_data glb;
 
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-  
-  bool ok = CatDriver_CloneInStart();
+  ft817c ftc(&ft817);
+  printf ("sizeof(ft871_settings_t) =%d\n",sizeof(ft871_settings_t));
+  printf ("ts.tx_disable=0x%x  CatDriver_CatPttActive()=%d \n",ts.tx_disable, CatDriver_CatPttActive());
+
   hUsbDeviceFS.dev_state = USBD_STATE_CONFIGURED;
 
+  fill_ft817 f8;
+
+#if 1
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+#endif
+  
+  //  bool ok = CatDriver_CloneInStart();
+
   fillclone fc;
-  fc.filldata();
+  //  fc.filldata();
 #if 1
   for  (int i = 0; i < 6000; i++)
     {
-      if (ft817.state == CAT_CAT)
+      if ((ft817.state == CAT_CAT) || (ft817.state == CAT_INIT))
 	{
-	  printf (" CAT_CAT in=%s fc.ind=%d count=%d\n",clonein_state_cstr(), fc.ind, fc.count);
-	  fill_ft817 f8;
-	  f8.filldata(FT817_SET_FREQ);
-	  f8.filldata(FT817_GET_FREQ);
+	  printf (" CAT_CAT in=%s fc.ind=%d count=%d\n",ftc.clonein_state_cstr(), fc.ind, fc.count);
+	  //	  f8.filldata(FT817_SET_FREQ);
+	  //	  f8.filldata(FT817_GET_FREQ);
+	  f8.filldata_loop();
 	  CatDriver_ft817_HandleProtocol();
 	}
-      CatDriver_HandleProtocol();
+      //      CatDriver_HandleProtocol();
       uint8_t bytes = CatDriver_InterfaceBufferHasData();
-      printf ("bytes =%d in=%s fc.ind=%d count=%d\n",bytes, clonein_state_cstr(), fc.ind, fc.count);
-      if (bytes == 0)
+      printf ("bytes =%d in=%s fc.ind=%d count=%d\n",bytes, ftc.clonein_state_cstr(), fc.ind, fc.count);
+      if (ft817.state == CAT_CLONEIN)
 	{
-	  bool ok = fc.filldata();
+	  if (bytes == 0)
+	    {
+	      bool ok = fc.filldata();
+	    }
 	}
     }
 #endif
