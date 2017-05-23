@@ -88,7 +88,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc;..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Core\Inc;..\..\misc\v_eprom;..\..\drivers\ui;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio\softdds;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc;..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Core\Inc;..\..\misc\v_eprom;..\..\drivers\cat;..\..\drivers\ui;..\..\drivers\ui\menu;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio\softdds;..\..\drivers\audio\cw;..\..\drivers\audio\codec;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\misc;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -120,7 +120,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc;..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Core\Inc;..\..\misc\v_eprom;..\..\drivers\ui;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio\softdds;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc;..\..\basesw\mcHF\Middlewares\ST\STM32_USB_Device_Library\Core\Inc;..\..\misc\v_eprom;..\..\drivers\cat;..\..\drivers\ui;..\..\drivers\ui\menu;..\..\drivers\ui\lcd;..\..\drivers\ui\oscillator;..\..\drivers\audio\softdds;..\..\drivers\audio\cw;..\..\drivers\audio\codec;..\..\drivers\audio;..\..\drivers\freedv;..\..\basesw\mcHF\Drivers\CMSIS\Include;..\..\basesw\mcHF\Inc;..\..\basesw\mcHF\Drivers\STM32F4xx_HAL_Driver\Inc;..\..\basesw\mcHF\Drivers\CMSIS\Device\ST\STM32F4xx\Include;..\..\misc;..\..\hardware;\rel\googletest-master\googletest-master\googletest\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
