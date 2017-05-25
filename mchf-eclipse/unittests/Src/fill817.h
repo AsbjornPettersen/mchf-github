@@ -32,7 +32,17 @@ public:
   uint8_t buf[256];
   fill_buf()
   {
+    clear();
+  };
+  void clear()
+  {
     memset(buf, 0x00, sizeof(buf));
+  };
+  bool setcmd(const Ft817_CatCmd_t cmd)
+  {
+    clear();
+    buf[4]  = (uint8_t) cmd;
+    return true;
   };
   bool add (const unsigned int len)
   {
@@ -78,8 +88,8 @@ public:
   };
   bool filldata(const Ft817_CatCmd_t cmd) const
   {
-    fill_buf b;   
-    b.buf[4]  = (uint8_t) cmd;
+    fill_buf b;
+    b.setcmd(cmd);
     b.add(5);
     if (m_verbose)
       printf ("filldata 0x%x\n",cmd);
