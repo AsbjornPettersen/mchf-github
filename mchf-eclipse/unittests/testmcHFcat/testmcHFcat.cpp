@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <vector>
 
+#define WINDOWS_ONLY
+
 #include "../Src/fill817.h"
 #include "../Src/argstab.h"
+#include "../Src/COMPort.h"
 
+#if 0
 uint8_t CDC_Transmit_FS(uint8_t* Buf,uint32_t Len) {  return 0; }
 bool RadioManagement_FmDevIs5khz() {  return false; }
 void RadioManagement_FmDevSet5khz(bool is5khz) {  return; }
@@ -18,6 +22,7 @@ struct SMeter volatile sm;
 USBD_HandleTypeDef hUsbDeviceFS;
 __IO CdcVcp_CtrlLines_t  cdcvcp_ctrllines;
 struct TransceiverState volatile ts;
+#endif
 
 int main(int argc, char **argv) 
 {
@@ -37,9 +42,25 @@ int main(int argc, char **argv)
     case '0':
       {
 	std::string c = args.get_param("-port");
-	printf ("Open port %s\n",c.c_str());
+	std::string comname = "COM" + c;
+	printf ("Open port %s\n",comname.c_str());
+	serialportc h;
+	if (!h.create(comname.c_str()))
+	  {
+	    printf ("cnat open %s\n", comname.c_str());
+	    return 0;
+	  }
+	const std::string baudrate = "115200";
+	h.configure(baudrate);
+	h.configuretimeout();
+	if (!h.set_configured())
+	  {
+	    printf ("can't configure %s\n", comname.c_str());
+	    return 0;
+	  }
 	fill_buf b;
 	b.setcmd(FT817_GET_FREQ);
+	bool ok = h.WriteUart(b.buf, 5);
       }
       break;
     default:

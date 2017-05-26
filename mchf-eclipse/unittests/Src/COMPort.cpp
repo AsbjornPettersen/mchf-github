@@ -3,64 +3,14 @@
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
+#include <string>
 
-
-int                SetupUart();
-int                SetupUart2();
-int                WriteUart(unsigned char *buf1, int len,HANDLE);
-int                ReadUart(int len,HANDLE);
-int                configure(),configuretimeout(),CloseUart(),CloseUart2();
-
-
-HANDLE         LPort;
-DCB            PortDCB; 
-COMMTIMEOUTS   CommTimeouts; 
-HANDLE         hPort2;
-char           lastError[1024],buf1[100],buf2[100];
 int            index1=-1,index2=-1,index3=-1,index4=-1,index5=-1,index6=-1,index7=-1;
-char           buff;
-
-class serialportc
-{
-public:
-  HANDLE hPort1 = nullptr;
-  serialportc()
-  {
-  };
-  bool create(const char *comport)
-  {
-    hPort1 = CreateFileA (comport,		     // Name of the port 
-			 GENERIC_READ | GENERIC_WRITE,     // Access (read-write) mode 
-			 0,                                  
-			 NULL,                             
-			 OPEN_EXISTING,
-			 FILE_ATTRIBUTE_NORMAL,                     
-			 NULL);
-    if ( hPort1 == INVALID_HANDLE_VALUE )
-      {       
-	return false;
-      }   
-    return true;
-  };
-  bool Close()
-  {
-    CloseHandle(hPort1);
-    hPort1 = nullptr;
-    return true;
-  };
-};
-serialportc h1;
-serialportc h2;
 
 #if 0
 // Message handler for about box.
 INT_PTR CALLBACK Port(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {	
-SendDlgItemMessageA(hDlg, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"9600");
-SendDlgItemMessageA(hDlg, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"19200");
-SendDlgItemMessageA(hDlg, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"38400");
-SendDlgItemMessageA(hDlg, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"57600");
-SendDlgItemMessageA(hDlg, IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"115200");
 SendDlgItemMessageA(hDlg, IDC_COMBO2, CB_ADDSTRING, 0, (LPARAM)"5");
 SendDlgItemMessageA(hDlg, IDC_COMBO2, CB_ADDSTRING, 0, (LPARAM)"6");
 SendDlgItemMessageA(hDlg, IDC_COMBO2, CB_ADDSTRING, 0, (LPARAM)"7");
@@ -75,120 +25,101 @@ SendDlgItemMessageA(hDlg, IDC_COMBO4, CB_ADDSTRING, 0, (LPARAM)"2");
 SendDlgItemMessageA(hDlg, IDC_COMBO5, CB_ADDSTRING, 0, (LPARAM)"Xon/Xoff");
 SendDlgItemMessageA(hDlg, IDC_COMBO5, CB_ADDSTRING, 0, (LPARAM)"Hardware");
 SendDlgItemMessageA(hDlg, IDC_COMBO5, CB_ADDSTRING, 0, (LPARAM)"None");
-SendDlgItemMessageA(hDlg, IDC_COMBO6, CB_ADDSTRING, 0, (LPARAM)"COM1");
-SendDlgItemMessageA(hDlg, IDC_COMBO6, CB_ADDSTRING, 0, (LPARAM)"COM5");
-SendDlgItemMessageA(hDlg, IDC_COMBO7, CB_ADDSTRING, 0, (LPARAM)"COM1");
-SendDlgItemMessageA(hDlg, IDC_COMBO7, CB_ADDSTRING, 0, (LPARAM)"COM5");
 
- case WM_COMMAND:
-   switch(LOWORD(wParam)) 
-     {   
-   if(LOWORD(wParam)== IDOK)
-     {       
-       if((index1==-1)||(index2==-1)||(index3==-1)||(index4==-1)||(index5==-1)||(index6==-1)||(index6==-1))
-	 {
-	   MessageBoxA(hDlg,(LPCSTR)"Select the property of COM Port",(LPCSTR)"Error", MB_OK);	   
-	 }
-       else
-	 {	 
-	   SetupUart();
-	   return (INT_PTR)TRUE;
-	 }       
-     }
 #endif
 
-int SetupUart()
+static LPVOID get_err_str(const DWORD dwerr)
 {
-  int STOPBITS;
+  LPVOID lpMsgBuf;
   
-  if (!h1.create("COM5"))
-    return 0;
-
-  //Initialize the DCBlength member. 
-  PortDCB.DCBlength = sizeof (DCB); 
-  
-  // Get the default port setting information.
-  GetCommState (h1.hPort1, &PortDCB);
-  configure();
-  
-  // Retrieve the time-out parameters for all read and write operations  
-  GetCommTimeouts (h1.hPort1, &CommTimeouts); 
-  configuretimeout();
-    
-  //Re-configure the port with the new DCB structure. 
-  if (!SetCommState (h1.hPort1, &PortDCB)) 
-    { 
-      MessageBox (NULL, L"1.Could not create the read thread.(SetCommState Failed)" ,L"Error", MB_OK);
-      h1.Close();   
-      return 0; 
-    } 
-  
-  // Set the time-out parameters for all read and write operations on the port. 
-  if (!SetCommTimeouts (h1.hPort1, &CommTimeouts)) 
-    { 
-      MessageBox (NULL, L"Could not create the read thread.(SetCommTimeouts Failed)" ,L"Error", MB_OK);
-      h1.Close(); 
-      return 0; 
-    } 
-  
-  // Clear the port of any existing data. 
-  if(PurgeComm(h1.hPort1, PURGE_TXCLEAR | PURGE_RXCLEAR)==0) 
-    {   MessageBox (NULL, L"Clearing The Port Failed" ,L"Message", MB_OK);
-      
-      h1.Close(); 
-      return 0; 
-    }   
-  return 1;
+  FormatMessage( 
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+		FORMAT_MESSAGE_FROM_SYSTEM | 
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		dwerr,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
+		(LPTSTR) &lpMsgBuf,
+		0,
+		NULL 
+		 );
+  return(lpMsgBuf);
 }
-
-int SetupUart2()
-{
-  int STOPBITS;
-
-  if (!h2.create("COM1"))
-    return 0;
-  
-  // Initialize the DCBlength member. 
-  PortDCB.DCBlength = sizeof (DCB); 
-  
-  // Get the default port setting information.
-  GetCommState (h2.hPort1, &PortDCB);
-  configure();
-  
-  
-  // Retrieve the time-out parameters for all read and write operations  
-  GetCommTimeouts (h2.hPort1, &CommTimeouts);
-  configuretimeout();
-	
-	//Re-configure the port with the new DCB structure. 
-  if (!SetCommState (h2.hPort1, &PortDCB)) 
-    { 
-      MessageBox (NULL, L"1.Could not create the read thread.(SetCommState Failed)" ,L"Error", MB_OK);
-      h2.Close();   
-      return 0; 
-    } 
-  
-  // Set the time-out parameters for all read and write operations on the port. 
-  if (!SetCommTimeouts (hPort2, &CommTimeouts)) 
-    { 
-      MessageBox (NULL, L"Could not create the read thread.(SetCommTimeouts Failed)" ,L"Error", MB_OK);
-      h2.Close();   
-      return 0; 
-    } 
-  
-  // Clear the port of any existing data. 
-  if(PurgeComm(h2.hPort1, PURGE_TXCLEAR | PURGE_RXCLEAR)==0) 
-    {   MessageBox (NULL, L"Clearing The Port Failed" ,L"Message", MB_OK);
-      h2.Close();
-      return 0; 
-    } 
  
-  return 1;
+ static void show_err(const DWORD dwerr)
+ {
+   LPVOID lpe = get_err_str(dwerr);
+   
+   printf("err=%s",(const char *)lpe);
+  LocalFree(lpe);
 }
 
-int configure()
+ void os_err_str(const DWORD dwerr, char *str, const int maxlen)
+  {
+  LPVOID lpe = get_err_str(dwerr);
+  if (lpe)
+    {
+      if (maxlen > 200)
+	memset (str,0x00,200);
+      strncpy (str,(char *)lpe, maxlen);
+      LocalFree(lpe);
+    }
+ }
+ 
+class oserrinfo
+{
+  std::string errstr;
+  DWORD dwerr;
+  DWORD get_last_error()
+  {
+    DWORD le;
+    le = GetLastError();
+    return (le);
+  };
+public:
+ oserrinfo() 
+  {
+    dwerr = 0;
+  };
+  const char *get_errstr() const { return errstr.c_str(); };
+  DWORD getlasterr()
+  {
+    dwerr = get_last_error();
+    char buf[500];
+    os_err_str(dwerr, buf, sizeof(buf)-1);
+    //    term_at_crlf(buf);
+    errstr = buf;
+    return dwerr;
+  };
+};
+
+ int serialportc::baudrate_to_index(const std::string b) const
+ { 
+   if (b == "115200")
+     return 0;
+   else if (b == "57600")
+     return 1;
+   else if (b == "38400")
+     return 2;
+   else if (b == "19200")
+     return 3;
+   else if (b == "9600")
+     return 4;
+   else if (b == "4800")
+     return 5;
+
+   return 0;
+ }
+
+bool serialportc::configure(const std::string baudrate)
 {	
-  // Change the DCB structure settings
+  const int index1 = baudrate_to_index(baudrate);
+
+  memset(&PortDCB, 0x00, sizeof(PortDCB)); 
+  PortDCB.DCBlength = sizeof (DCB); 
+
+  GetCommState (hPort1, &PortDCB);
+
   PortDCB.fBinary = TRUE;                         // Binary mode; no EOF check
   PortDCB.fParity = TRUE;                         // Enable parity checking 
   PortDCB.fDsrSensitivity = FALSE;                // DSR sensitivity 
@@ -204,16 +135,19 @@ int configure()
       PortDCB.BaudRate= 115200;            
       break;
     case 1:
-      PortDCB.BaudRate = 19200;            
+      PortDCB.BaudRate = 57600;            
       break;
     case 2:
-      PortDCB.BaudRate= 38400;            
+      PortDCB.BaudRate = 38400;            
       break;
     case 3:
-      PortDCB.BaudRate = 57600;            
+      PortDCB.BaudRate = 19200;            
       break;
     case 4:
       PortDCB.BaudRate = 9600;            
+      break;
+    case 5:
+      PortDCB.BaudRate = 4800;            
       break;
     default:
       break;
@@ -293,91 +227,91 @@ int configure()
     default:
       break;
     }
-  return 1;
+  return true;
 }
 
-int configuretimeout()
+bool serialportc::configuretimeout()
 {
-	//memset(&CommTimeouts, 0x00, sizeof(CommTimeouts)); 
+  GetCommTimeouts (hPort1, &CommTimeouts); 
+
   CommTimeouts.ReadIntervalTimeout = 50; 
   CommTimeouts.ReadTotalTimeoutConstant = 50; 
   CommTimeouts.ReadTotalTimeoutMultiplier=10;
   CommTimeouts.WriteTotalTimeoutMultiplier=10;
   CommTimeouts.WriteTotalTimeoutConstant = 50; 
-  return 1;
+  return true;
 }
-int WriteUart(unsigned char *buf1, int len,HANDLE hPort)
+
+bool serialportc::purge()
+{
+  if(PurgeComm(hPort1, PURGE_TXCLEAR | PURGE_RXCLEAR)==0) 
+    {       
+      return false; 
+    }   
+  return true;
+}
+
+bool serialportc::set_configured()
+{
+  oserrinfo oerr;
+  if (!SetCommState (hPort1, &PortDCB)) 
+    { 
+      DWORD dw = oerr.getlasterr();
+      printf("%s\n",oerr.get_errstr());
+
+      Close();   
+      return false; 
+    } 
+
+  if (!SetCommTimeouts (hPort1, &CommTimeouts)) 
+    { 
+      Close();   
+      return false; 
+    } 
+  return true;
+}
+
+bool serialportc::WriteUart(unsigned char *buf1, const int len)
 {
   DWORD dwNumBytesWritten;
   
-  WriteFile (hPort,buf1, len,&dwNumBytesWritten,NULL);			
+  WriteFile (hPort1,buf1, len,&dwNumBytesWritten,NULL);			
   
   if(dwNumBytesWritten > 0)
     {
       //MessageBox (NULL, L"Transmission Success" ,L"Success", MB_OK);
-      return 1;
-    }
-  
+      return true;
+    }  
   else 
     {
-      MessageBox (NULL, L"Transmission Failed" ,L"Error", MB_OK);
-      return 0;	
+      //      MessageBox (NULL, L"Transmission Failed" ,L"Error", MB_OK);
+      return false;	
     }
 }
 
-int ReadUart(int len,HANDLE hPort)
+int serialportc::ReadUart(const int len)
 {
   BOOL ret;
   DWORD dwRead;
-  BOOL fWaitingOnRead = FALSE;
-  OVERLAPPED osReader = {0};
   unsigned long retlen=0;
-  
-  // Create the overlapped event. Must be closed before exiting to avoid a handle leak.
-  
-  osReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-  if (osReader.hEvent == NULL)
-    MessageBox (NULL, L"Error in creating Overlapped event" ,L"Error", MB_OK);
-  if (!fWaitingOnRead)
-    {
-      if (!ReadFile(hPort, buf2, len, &dwRead,  &osReader)) 	
-	{	  
-          FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                        NULL,
-                        GetLastError(),
-                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                        (LPWSTR)lastError,
-                        1024,
-                        NULL);
-	  MessageBox (NULL, (LPWSTR)lastError ,L"MESSAGE", MB_OK);
-	  
-	}
-      else
-	{
-	  
-	  // MessageBox (NULL, L"ReadFile Suceess" ,L"Success", MB_OK);
-	}
-      
+    
+  char buf2[1000];
+  if (!ReadFile(hPort1, buf2, len, &dwRead,  NULL)) 	
+    {	  	  
     }
+  else
+    {	  
+      // MessageBox (NULL, L"ReadFile Suceess" ,L"Success", MB_OK);
+    }      
  	
   if(dwRead > 0)	
     {
       //MessageBox (NULL, L"Read DATA Success" ,L"Success", MB_OK);//If we have data
       return (int) retlen;
     }
-  //return the length
-  
-  else return 0;     //else no data has been read
+  else 
+    return 0;     //else no data has been read
 }
 
-int CloseUart()
-{
-  h1.Close(); 
-  return 1;
-}
-int CloseUart2()
-{
-  CloseHandle(hPort2);
-  return 1;
-}
+
 

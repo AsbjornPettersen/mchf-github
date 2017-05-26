@@ -1,6 +1,31 @@
 #include "gtest/gtest.h"
 #include <stdio.h>
 
+#define ARM_MATH_CM4
+#define _GNU_SOURCE 
+#define CORTEX_M4 
+#define STM32F407xx 
+#define USE_HAL_DRIVER 
+#define USE_FULL_ASSERT
+
+int __SMUAD(int , int ) { return 0; }
+int __SMLALD(int, int, int) { return 0; }
+int __DSB() { return 0; }
+int __NOP() { return 0; }
+int __CLZ(int i) { return 0; }
+int __SSAT(int i, int b) { return 0; }
+int __QADD(int i, int b) { return 0; }
+int __QSUB(int i, int b) { return 0; }
+
+uint32_t __builtin_bswap32(uint32_t val) // need to convert big / little endian!!
+{
+  return val; // tbd
+}
+
+extern uint8_t CDC_Transmit_FS(uint8_t* Buf,uint32_t Len);
+
+
+#include "../../drivers/cat/cat_driver.c"
 #include "../Src/fill817.h"
 
 
