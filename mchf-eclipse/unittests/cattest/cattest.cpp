@@ -212,8 +212,10 @@ TEST(CatDrivertest, allcommands)
   fill_ft817 t;
   for (auto i = t.v.cbegin(); i != t.v.cend(); i++)
     {
-      bool ok = t.filldata(*i);
+      unsigned int response_len;
+      bool ok = t.filldata(*i, response_len);
       EXPECT_EQ (true, ok);
+      EXPECT_GT(response_len,0);
 
       ts.sysclock  = cat_driver.lastbufferadd_time = CAT_DRIVER_TIMEOUT; // hack
       CatDriver_HandleCommands();

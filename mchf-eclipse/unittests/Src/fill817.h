@@ -62,8 +62,35 @@ public:
   {
     memset(buf, 0x00, sizeof(buf));
   };
-  bool setcmd(const Ft817_CatCmd_t cmd)
+  bool setcmd(const Ft817_CatCmd_t cmd, unsigned int &response_len)
   {
+    response_len = 0;
+    switch (cmd)
+      {
+      case FT817_SET_FREQ:
+	response_len = 1;
+	break;
+      default:
+	response_len = 1;
+    };
+    #if 0
+      FT817_GET_FREQ,
+      FT817_SPLIT_ON,
+      FT817_SPLIT_OFF,
+      FT817_PTT_ON,
+      FT817_PTT_OFF,
+      FT817_MODE_SET,
+      FT817_PWR_ON,
+      FT817_TOGGLE_VFO,
+      FT817_A7,
+      FT817_EEPROM_READ,
+      FT817_EEPROM_WRITE,
+      FT817_READ_TX_STATE,
+      FT817_READ_RX_STATE,
+      FT817_PTT_STATE,
+      FT817_NOOP
+#endif
+    
     clear();
     buf[4]  = (uint8_t) cmd;
     return true;
@@ -110,10 +137,10 @@ public:
   {
     it = v.cbegin();
   };
-  bool filldata(const Ft817_CatCmd_t cmd) const
+  bool filldata(const Ft817_CatCmd_t cmd, unsigned int &response_len) const
   {
     fill_buf b;
-    b.setcmd(cmd);
+    b.setcmd(cmd, response_len);
     b.add(5);
     if (m_verbose)
       printf ("filldata 0x%x\n",cmd);
@@ -121,7 +148,8 @@ public:
   };
   bool filldata_loop()
   {
-    bool ok = filldata(*it);
+    unsigned int response_len;
+    bool ok = filldata(*it, response_len);
     it++;
     if (it == v.cend())
       it = v.cbegin();

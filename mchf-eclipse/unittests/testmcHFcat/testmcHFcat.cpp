@@ -47,10 +47,11 @@ int main(int argc, char **argv)
 	serialportc h;
 	if (!h.create(comname.c_str()))
 	  {
-	    printf ("cnat open %s\n", comname.c_str());
+	    printf ("can't open %s\n", comname.c_str());
 	    return 0;
 	  }
-	const std::string baudrate = "115200";
+	//	const std::string baudrate = "115200";
+		const std::string baudrate = "4800";
 	h.configure(baudrate);
 	h.configuretimeout();
 	if (!h.set_configured())
@@ -58,9 +59,20 @@ int main(int argc, char **argv)
 	    printf ("can't configure %s\n", comname.c_str());
 	    return 0;
 	  }
+
+	h.purge();
+	
 	fill_buf b;
-	b.setcmd(FT817_GET_FREQ);
-	bool ok = h.WriteUart(b.buf, 5);
+	unsigned int response_len;
+	b.setcmd(FT817_GET_FREQ, response_len);
+
+	char buf[1000];
+	memset (buf,0x00,sizeof(buf));
+	
+	int br = h.ReadUart(response_len, buf);
+	printf ("b=%d %s\n",br,buf);
+	//	bool ok = h.WriteUart(b.buf, 5);
+	h.Close();
       }
       break;
     default:

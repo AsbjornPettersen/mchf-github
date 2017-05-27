@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string>
 
-int            index1=-1,index2=-1,index3=-1,index4=-1,index5=-1,index6=-1,index7=-1;
+int index2=-1,index3=-1,index4=-1,index5=-1,index6=-1,index7=-1;
 
 #if 0
 // Message handler for about box.
@@ -107,6 +107,8 @@ public:
      return 4;
    else if (b == "4800")
      return 5;
+   else if (b == "2400")
+     return 6;
 
    return 0;
  }
@@ -148,6 +150,9 @@ bool serialportc::configure(const std::string baudrate)
       break;
     case 5:
       PortDCB.BaudRate = 4800;            
+      break;
+    case 6:
+      PortDCB.BaudRate = 2400;            
       break;
     default:
       break;
@@ -289,13 +294,12 @@ bool serialportc::WriteUart(unsigned char *buf1, const int len)
     }
 }
 
-int serialportc::ReadUart(const int len)
+int serialportc::ReadUart(const unsigned int len, char *buf2)
 {
   BOOL ret;
   DWORD dwRead;
   unsigned long retlen=0;
     
-  char buf2[1000];
   if (!ReadFile(hPort1, buf2, len, &dwRead,  NULL)) 	
     {	  	  
     }
@@ -306,7 +310,7 @@ int serialportc::ReadUart(const int len)
  	
   if(dwRead > 0)	
     {
-      //MessageBox (NULL, L"Read DATA Success" ,L"Success", MB_OK);//If we have data
+      retlen = dwRead;
       return (int) retlen;
     }
   else 
