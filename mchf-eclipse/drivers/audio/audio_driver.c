@@ -19,7 +19,11 @@
 #include <stdio.h>
 #include <math.h>
 #include "codec.h"
+
+#ifdef STM32F4
 #include "i2s.h"
+#endif
+
 #include "cw_gen.h"
 
 #include <limits.h>
@@ -44,10 +48,6 @@ typedef struct {
 
 // SSB filters - now handled in ui_driver to allow I/Q phase adjustment
 
-// ---------------------------------
-// DMA buffers for I2S
-__IO int16_t 	tx_buffer[BUFF_LEN+1];
-__IO int16_t    rx_buffer[BUFF_LEN+1];
 
 static inline void AudioDriver_TxFilterAudio(bool do_bandpass, bool do_bass_treble, float32_t* inBlock, float32_t* outBlock, const uint16_t blockSize);
 
@@ -72,7 +72,7 @@ typedef struct
 } LMSData;
 
 
-float32_t	__attribute__ ((section (".ccm"))) audio_delay_buffer	[AUDIO_DELAY_BUFSIZE];
+float32_t	__MCHF_SPECIALMEM audio_delay_buffer	[AUDIO_DELAY_BUFSIZE];
 
 static void AudioDriver_ClearAudioDelayBuffer()
 {
@@ -105,22 +105,22 @@ float log10f_fast(float X) {
 //
 // Audio RX - Decimator
 static  arm_fir_decimate_instance_f32   DECIMATE_RX;
-float32_t           __attribute__ ((section (".ccm"))) decimState[FIR_RXAUDIO_BLOCK_SIZE + 43];//FIR_RXAUDIO_NUM_TAPS];
+float32_t           __MCHF_SPECIALMEM decimState[FIR_RXAUDIO_BLOCK_SIZE + 43];//FIR_RXAUDIO_NUM_TAPS];
 // Audio RX - Decimator in Q-path
 static  arm_fir_decimate_instance_f32   DECIMATE_RX_Q;
-float32_t           __attribute__ ((section (".ccm"))) decimQState[FIR_RXAUDIO_BLOCK_SIZE + 43]; //FIR_RXAUDIO_NUM_TAPS];
+float32_t           __MCHF_SPECIALMEM decimQState[FIR_RXAUDIO_BLOCK_SIZE + 43]; //FIR_RXAUDIO_NUM_TAPS];
 
 // Decimator for Zoom FFT
 static	arm_fir_decimate_instance_f32	DECIMATE_ZOOM_FFT_I;
-float32_t			__attribute__ ((section (".ccm"))) decimZoomFFTIState[FIR_RXAUDIO_BLOCK_SIZE + FIR_RXAUDIO_NUM_TAPS];
+float32_t			__MCHF_SPECIALMEM decimZoomFFTIState[FIR_RXAUDIO_BLOCK_SIZE + FIR_RXAUDIO_NUM_TAPS];
 
 // Decimator for Zoom FFT
 static	arm_fir_decimate_instance_f32	DECIMATE_ZOOM_FFT_Q;
-float32_t			__attribute__ ((section (".ccm"))) decimZoomFFTQState[FIR_RXAUDIO_BLOCK_SIZE + FIR_RXAUDIO_NUM_TAPS];
+float32_t			__MCHF_SPECIALMEM decimZoomFFTQState[FIR_RXAUDIO_BLOCK_SIZE + FIR_RXAUDIO_NUM_TAPS];
 
 // Audio RX - Interpolator
 static	arm_fir_interpolate_instance_f32 INTERPOLATE_RX;
-float32_t			__attribute__ ((section (".ccm"))) interpState[FIR_RXAUDIO_BLOCK_SIZE + FIR_RXAUDIO_NUM_TAPS];
+float32_t			__MCHF_SPECIALMEM interpState[FIR_RXAUDIO_BLOCK_SIZE + FIR_RXAUDIO_NUM_TAPS];
 
 // variables for RX IIR filters
 static float32_t		iir_rx_state[IIR_RXAUDIO_BLOCK_SIZE + IIR_RXAUDIO_NUM_STAGES];
@@ -442,9 +442,9 @@ extern __IO	KeypadState				ks;
 // ATTENTION: These data structures have been placed in CCM Memory (64k)
 // IF THE SIZE OF  THE DATA STRUCTURE GROWS IT WILL QUICKLY BE OUT OF SPACE IN CCM
 // Be careful! Check mchf-eclipse.map for current allocation
-__IO AudioDriverState   __attribute__ ((section (".ccm"))) ads;
-AudioDriverBuffer  __attribute__ ((section (".ccm"))) adb;
-LMSData            __attribute__ ((section (".ccm"))) lmsData;
+__IO AudioDriverState   __MCHF_SPECIALMEM ads;
+AudioDriverBuffer  __MCHF_SPECIALMEM adb;
+LMSData            __MCHF_SPECIALMEM lmsData;
 
 #ifdef USE_SNAP
 SnapCarrier   sc;
@@ -576,10 +576,12 @@ void AudioDriver_Init(void)
     // Audio Filter Init init
     AudioDriver_InitFilters();
 
-    // Start DMA transfers
-    MchfHw_Codec_StartDMA((uint32_t)&tx_buffer, (uint32_t)&rx_buffer, BUFF_LEN);
 
     ts.codec_present = Codec_Reset(ts.samp_rate,word_size) == HAL_OK;
+
+    // Start DMA transfers
+    MchfHw_Codec_StartDMA();
+
 
 #ifdef USE_SNAP
     // initialize FFT structure used for snap carrier
@@ -3029,8 +3031,10 @@ static void AudioDriver_SpectrumZoomProcessSamples(const uint16_t blockSize)
     }
 }
 
+#if 0
 static uint16_t modulus = 0;
 // used to divide usb audio out sample rate, set to 0 for 48khz, do not change
+#endif
 
 #ifdef USE_FREEDV
 //
@@ -3600,11 +3604,8 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
 
             // 16 bit format - convert to float and increment
             // we collect our I/Q samples for USB transmission if TX_AUDIO_DIGIQ
-            if (i%USBD_AUDIO_IN_OUT_DIV == modulus)
-            {
-                audio_in_put_buffer(src[i].l);
-                audio_in_put_buffer(src[i].r);
-            }
+            audio_in_put_buffer(src[i].l);
+            audio_in_put_buffer(src[i].r);
         }
     }
 
@@ -3809,7 +3810,9 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
                         !((dmod_mode == DEMOD_LSB || dmod_mode == DEMOD_USB || dmod_mode == DEMOD_CW) && FilterPathInfo[ts.filter_path].FIR_I_coeff_file == i_rx_new_coeffs)) // in SAM mode, the decimation is done in both I & Q path --> AudioDriver_Demod_SAM
                 {
                     // TODO HILBERT
+
                     // for filter BW <= 3k6 and LSB/USB/CW, don't do decimation, we are already in 12ksps
+
                     arm_fir_decimate_f32(&DECIMATE_RX, adb.a_buffer, adb.a_buffer, blockSize);      // LPF built into decimation (Yes, you can decimate-in-place!)
                 }
 
@@ -3823,12 +3826,13 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
 
                     // DSP noise reduction using LMS (Least Mean Squared) algorithm
                     // This is the pre-filter/AGC instance
-#ifndef alternate_NR
-                    if((dsp_active & DSP_NR_ENABLE) && (!(dsp_active & DSP_NR_POSTAGC_ENABLE)) && !(ts.dmod_mode == DEMOD_SAM && (FilterPathInfo[ts.filter_path].sample_rate_dec) == RX_DECIMATION_RATE_24KHZ))      // Do this if enabled and "Pre-AGC" DSP NR enabled
-                    {
-                        AudioDriver_NoiseReduction(blockSizeDecim);
-                    }
-#endif
+
+
+                        if((dsp_active & DSP_NR_ENABLE) && (!(dsp_active & DSP_NR_POSTAGC_ENABLE)) && !(ts.dmod_mode == DEMOD_SAM && (FilterPathInfo[ts.filter_path].sample_rate_dec) == RX_DECIMATION_RATE_24KHZ))      // Do this if enabled and "Pre-AGC" DSP NR enabled
+                            {
+                              AudioDriver_NoiseReduction(blockSizeDecim);
+                            }
+
                   }
 
                 // Apply audio  bandpass filter
@@ -3869,7 +3873,8 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
                 }
                 //
 
-#ifdef alternate_NR
+                if (ts.new_nb==true) //start of new nb
+                {
                            // NR_in and _out buffers are using the same physical space than the freedv_iq_buffer
                            // the freedv_iq_buffer  consist of an array of 320 complex (2*float) samples
                            // for NR reduction we use a maximum of 256 real samples
@@ -3930,7 +3935,7 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
 
                            }
 
-#endif
+                } // end of new nb
 
 
                 // Calculate scaling based on decimation rate since this affects the audio gain
@@ -4069,15 +4074,9 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
         // Unless this is DIGITAL I/Q Mode, we sent processed audio
         if (tx_audio_source != TX_AUDIO_DIGIQ)
         {
-            if (i%USBD_AUDIO_IN_OUT_DIV == modulus)
-            {
-                float32_t val = adb.a_buffer[i] * usb_audio_gain;
-                audio_in_put_buffer(val);
-                if (USBD_AUDIO_IN_CHANNELS == 2)
-                {
-                    audio_in_put_buffer(val);
-                }
-            }
+            float32_t val = adb.a_buffer[i] * usb_audio_gain;
+            audio_in_put_buffer(val);
+            audio_in_put_buffer(val);
         }
     }
     // calculate the first index we read so that we are not loosing
@@ -4086,11 +4085,13 @@ static void AudioDriver_RxProcessor(AudioSample_t * const src, AudioSample_t * c
     // since (SIZE/2) % USBD_AUDIO_IN_OUT_DIV == 0
     // if someone needs lower rates, just add formula or values
     // but this would bring us down to less than 12khz bitrate
+#if 0
     if (USBD_AUDIO_IN_OUT_DIV == 3)
     {
         modulus++;
         modulus%=USBD_AUDIO_IN_OUT_DIV;
     }
+#endif
 }
 
 
@@ -4617,7 +4618,7 @@ static void AudioDriver_TxProcessorDigital (AudioSample_t * const src, AudioSamp
 //* Output Parameters   :
 //* Functions called    :
 //*----------------------------------------------------------------------------
-static void AudioDriver_TxProcessor(AudioSample_t * const src, AudioSample_t * const dst, uint16_t blockSize)
+static void AudioDriver_TxProcessor(AudioSample_t * const srcCodec, AudioSample_t * const dst, uint16_t blockSize)
 {
     // we copy volatile variables which are used multiple times to local consts to let the compiler do its optimization magic
     // since we are in an interrupt, no one will change these anyway
@@ -4626,6 +4627,8 @@ static void AudioDriver_TxProcessor(AudioSample_t * const src, AudioSample_t * c
     const uint8_t tx_audio_source = ts.tx_audio_source;
     const uint8_t tune = ts.tune;
     const uint8_t iq_freq_mode = ts.iq_freq_mode;
+    AudioSample_t srcUSB[blockSize];
+    AudioSample_t * const src = (tx_audio_source == TX_AUDIO_DIG || tx_audio_source == TX_AUDIO_DIGIQ) ? srcUSB : srcCodec;
 
     // if we want to know if our signal will go out, look at this flag
     bool external_tx_mute = ts.audio_dac_muting_flag || ts.audio_dac_muting_buffer_count >0 ;
@@ -4637,7 +4640,7 @@ static void AudioDriver_TxProcessor(AudioSample_t * const src, AudioSample_t * c
     if (tx_audio_source == TX_AUDIO_DIG || tx_audio_source == TX_AUDIO_DIGIQ)
     {
         // FIXME: change type of audio_out_fill_tx_buffer to use audio sample struct
-        audio_out_fill_tx_buffer((int16_t*)src,2*blockSize);
+        audio_out_fill_tx_buffer((int16_t*)srcUSB,2*blockSize);
     }
 
     if (tx_audio_source == TX_AUDIO_DIGIQ && dmod_mode != DEMOD_CW && !tune)
@@ -4814,7 +4817,7 @@ static void AudioDriver_TxProcessor(AudioSample_t * const src, AudioSample_t * c
     case STREAM_TX_AUDIO_DIGIQ:
         for(int i = 0; i < blockSize; i++)
         {
-            //
+
             // 16 bit format - convert to float and increment
             // we collect our I/Q samples for USB transmission if TX_AUDIO_DIGIQ
             audio_in_put_buffer(dst[i].r);
@@ -4824,7 +4827,6 @@ static void AudioDriver_TxProcessor(AudioSample_t * const src, AudioSample_t * c
     case STREAM_TX_AUDIO_SRC:
         for(int i = 0; i < blockSize; i++)
         {
-            //
             // 16 bit format - convert to float and increment
             // we collect our I/Q samples for USB transmission if TX_AUDIO_DIGIQ
             audio_in_put_buffer(src[i].r);
