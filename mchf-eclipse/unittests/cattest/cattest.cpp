@@ -8,6 +8,7 @@
 #define USE_HAL_DRIVER 
 #define USE_FULL_ASSERT
 
+bool is_vfo_b(void) { return false; }
 int __SMUAD(int , int ) { return 0; }
 int __SMLALD(int, int, int) { return 0; }
 int __DSB() { return 0; }
