@@ -62,13 +62,38 @@ public:
   {
     memset(buf, 0x00, sizeof(buf));
   };
+   const char *cmd_cstr(const Ft817_CatCmd_t cmd) const
+  { 
+    switch (cmd)
+      {
+      case FT817_SET_FREQ:
+	return "FT817_SET_FREQ";
+      case FT817_GET_FREQ:
+	return "FT817_GET_FREQ";
+      case FT817_A7:
+	return "FT817_A7";
+#if 0
+      case FT817_:
+	return "FT817_";
+#endif
+      default:
+	return "FT817_????";
+      };
+  }; 
   bool setcmd(const Ft817_CatCmd_t cmd, unsigned int &response_len)
   {
+    //    printf ("cmd=%d->%s\n",cmd, cmd_cstr(cmd));
     response_len = 0;
     switch (cmd)
       {
       case FT817_SET_FREQ:
 	response_len = 1;
+	break;
+      case FT817_GET_FREQ:
+	response_len = 5;
+	break;
+      case FT817_A7:
+	response_len = 9;
 	break;
       default:
 	response_len = 1;

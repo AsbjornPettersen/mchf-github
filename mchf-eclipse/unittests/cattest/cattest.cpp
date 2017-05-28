@@ -228,6 +228,7 @@ TEST(CatDrivertest, allcommands)
       if (*i == FT817_NOOP) // well
 	continue;
       EXPECT_GT(sz,0);
+      EXPECT_EQ(sz,response_len);
     }
 }
 
