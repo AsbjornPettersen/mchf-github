@@ -24,23 +24,52 @@ __IO CdcVcp_CtrlLines_t  cdcvcp_ctrllines;
 struct TransceiverState volatile ts;
 #endif
 
+static void show_commands()
+{
+  printf ("Baudrates: 115200,57600,38400,19200,9600,4800,2400\n");
+
+  printf ("Commands:\n");
+  fill_ft817 t;
+  fill_buf b;
+  for (auto i = t.v.cbegin(); i != t.v.cend(); i++)
+    {
+      Ft817_CatCmd_t cmd = *i;
+      printf ("cmd=%3d %s\n",cmd,b.cmd_cstr(cmd));
+    }
+}
+
 int main(int argc, char **argv) 
 {
   if (argc <= 1)
     {
       printf ("%s\n",argv[0]);
       printf ("options :\n");
-      printf (" 0 :  Display mcHF status -port <COM port>\n");
+      printf (" 0 :  Info\n");
+      printf (" 1 :  Display mcHF status -port <COM port> -b <baudrate> -cmd <command>\n");
+
       return 0;
     }
 
   argstab args;
   args.get_arguments(argc, argv);
   args.dump();
-  switch (args.get_ch0())
+  switch (args.get_ch0())   
     {
     case '0':
       {
+	show_commands();
+      };
+      break;
+    case '1':
+      {
+	Ft817_CatCmd_t cmd = FT817_GET_FREQ;
+	unsigned int val;
+	if (args.get_param_uint("-cmd", val))
+	  {
+	    cmd = (Ft817_CatCmd_t) val;
+	    fill_buf b;
+	    printf ("cmd=%3d %s\n",cmd,b.cmd_cstr(cmd));
+	  }
 	std::string c = args.get_param("-port");
 	std::string comname = "COM" + c;
 	printf ("Open port %s\n",comname.c_str());
@@ -50,8 +79,18 @@ int main(int argc, char **argv)
 	    printf ("can't open %s\n", comname.c_str());
 	    return 0;
 	  }
+
 	//	const std::string baudrate = "115200";
-		const std::string baudrate = "4800";
+	std::string baudrate = "4800";
+	c = args.get_param("-b");
+	if (c.length() > 0)
+	  {
+	    bool found;
+	    int ind = h.baudrate_to_index(c, found);
+	    if (found)
+	      baudrate = c;
+	  }
+		
 	h.configure(baudrate);
 	h.configuretimeout();
 	if (!h.set_configured())
@@ -64,14 +103,16 @@ int main(int argc, char **argv)
 	
 	fill_buf b;
 	unsigned int response_len;
-	b.setcmd(FT817_GET_FREQ, response_len);
+	b.setcmd(cmd, response_len);
+
+	bool ok = h.WriteUart(b.buf, 5);
 
 	char buf[1000];
 	memset (buf,0x00,sizeof(buf));
 	
 	int br = h.ReadUart(response_len, buf);
 	printf ("b=%d %s\n",br,buf);
-	//	bool ok = h.WriteUart(b.buf, 5);
+	
 	h.Close();
       }
       break;

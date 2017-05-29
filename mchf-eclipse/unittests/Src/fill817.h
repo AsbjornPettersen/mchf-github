@@ -72,10 +72,32 @@ public:
 	return "FT817_GET_FREQ";
       case FT817_A7:
 	return "FT817_A7";
-#if 0
-      case FT817_:
-	return "FT817_";
-#endif
+      case FT817_SPLIT_ON:
+	return "FT817_SPLIT_ON";
+      case FT817_SPLIT_OFF:
+	return "FT817_SPLIT_OFF";
+      case FT817_PTT_ON:
+	return "FT817_PTT_ON";
+      case FT817_PTT_OFF:
+	return "FT817_PTT_OFF";
+      case FT817_MODE_SET:
+	return "FT817_MODE_SET";
+      case FT817_PWR_ON:
+	return "FT817_PWR_ON";
+      case FT817_TOGGLE_VFO:
+	return "FT817_TOGGLE_VFO";
+      case FT817_EEPROM_READ:
+	return "FT817_EEPROM_READ";
+      case FT817_EEPROM_WRITE:
+	return "FT817_EEPROM_WRITE";
+      case FT817_READ_TX_STATE:
+	return "FT817_READ_TX_STATE";
+      case FT817_READ_RX_STATE:
+	return "FT817_READ_RX_STATE";
+      case FT817_PTT_STATE:
+	return "FT817_PTT_STATE";
+      case FT817_NOOP:
+	return "FT817_NOOP";
       default:
 	return "FT817_????";
       };
@@ -98,23 +120,6 @@ public:
       default:
 	response_len = 1;
     };
-    #if 0
-      FT817_GET_FREQ,
-      FT817_SPLIT_ON,
-      FT817_SPLIT_OFF,
-      FT817_PTT_ON,
-      FT817_PTT_OFF,
-      FT817_MODE_SET,
-      FT817_PWR_ON,
-      FT817_TOGGLE_VFO,
-      FT817_A7,
-      FT817_EEPROM_READ,
-      FT817_EEPROM_WRITE,
-      FT817_READ_TX_STATE,
-      FT817_READ_RX_STATE,
-      FT817_PTT_STATE,
-      FT817_NOOP
-#endif
     
     clear();
     buf[4]  = (uint8_t) cmd;

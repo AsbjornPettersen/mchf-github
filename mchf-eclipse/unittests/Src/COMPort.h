@@ -46,6 +46,6 @@ public:
   bool purge();
   bool WriteUart(unsigned char *buf1, const int len);
   int ReadUart(const unsigned int len, char *buf2);
-  int baudrate_to_index(const std::string b) const;
+  int baudrate_to_index(const std::string b, bool &found) const;
 };
 

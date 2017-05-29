@@ -38,4 +38,12 @@ public:
       }
     return param;
   };
+  bool get_param_uint(const std::string firstoption, unsigned int &val) const
+  {
+    std::string c = get_param(firstoption);
+    if (c.empty())
+      return false;
+    val = (unsigned int) std::atoi(c.c_str());
+    return true;
+  };
 };

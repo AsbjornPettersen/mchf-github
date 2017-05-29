@@ -93,8 +93,9 @@ public:
   };
 };
 
- int serialportc::baudrate_to_index(const std::string b) const
+ int serialportc::baudrate_to_index(const std::string b, bool &found) const
  { 
+   found = true;
    if (b == "115200")
      return 0;
    else if (b == "57600")
@@ -110,12 +111,14 @@ public:
    else if (b == "2400")
      return 6;
 
-   return 0;
+   found = false;
+   return 0; // default
  }
 
 bool serialportc::configure(const std::string baudrate)
 {	
-  const int index1 = baudrate_to_index(baudrate);
+  bool found;
+  const int index1 = baudrate_to_index(baudrate, found);
 
   memset(&PortDCB, 0x00, sizeof(PortDCB)); 
   PortDCB.DCBlength = sizeof (DCB); 

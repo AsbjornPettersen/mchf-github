@@ -179,6 +179,12 @@ public:
   {
     reset_all();
   };
+  size_t send_sz() const
+  { 
+    size_t sz = transdata.tab.size(); 
+    return sz;
+  };
+
   void reset_all()
   {
     cat_buffer_reset(); // input buffer
@@ -206,6 +212,67 @@ TEST(FillBuftest, fill_buf)
   glb.reset_all();
 }
 
+TEST(CatDrivertest, blockAck) 
+{
+  global_data glb;
+
+  bool ok = CatDriver_BlockAck();
+  EXPECT_EQ (false, ok);
+
+  fill_buf f;
+  f.add(1); // zero val
+  ok = CatDriver_BlockAck();
+  EXPECT_EQ (false, ok);
+  
+  f.buf[0] = CLONE_CMD_ACK;
+  f.add(1); // 
+  ok = CatDriver_BlockAck();
+  EXPECT_EQ (true, ok);
+
+  glb.reset_all();
+  CatDriver_CloneSendAck();
+  EXPECT_EQ (1, glb.send_sz());
+}
+
+TEST(CatDrivertest, test_debug_flag) 
+{
+  bool debug = false;
+#ifdef DEBUG_FT817
+  debug = true;
+#endif
+  EXPECT_EQ (false, debug);
+}
+
+void check_one_cmd(const Ft817_CatCmd_t cmd, fill_ft817 &t)
+{
+  unsigned int response_len;
+  bool ok = t.filldata(cmd, response_len);
+  EXPECT_EQ (true, ok);
+  EXPECT_GT(response_len,0);
+  
+  ts.sysclock  = cat_driver.lastbufferadd_time = CAT_DRIVER_TIMEOUT; // hack
+  CatDriver_HandleCommands();
+  size_t sz = transdata.tab.size(); 
+#if 0
+  printf ("ts.tx_disable=0x%x  CatDriver_CatPttActive()=%d \n",ts.tx_disable, CatDriver_CatPttActive());
+  transdata.dump(); 
+#endif
+  transdata.tab.clear(); 
+  if (cmd == FT817_NOOP) // well
+    return;
+  EXPECT_GT(sz,0);
+  EXPECT_EQ(sz,response_len);
+}
+
+TEST(CatDrivertest, read_eeprom) 
+{
+  global_data glb;
+
+  Ft817_CatCmd_t cmd = FT817_EEPROM_READ;
+  fill_ft817 t;
+  check_one_cmd(cmd, t);
+}
+
 TEST(CatDrivertest, allcommands) 
 {
   global_data glb;
@@ -213,23 +280,7 @@ TEST(CatDrivertest, allcommands)
   fill_ft817 t;
   for (auto i = t.v.cbegin(); i != t.v.cend(); i++)
     {
-      unsigned int response_len;
-      bool ok = t.filldata(*i, response_len);
-      EXPECT_EQ (true, ok);
-      EXPECT_GT(response_len,0);
-
-      ts.sysclock  = cat_driver.lastbufferadd_time = CAT_DRIVER_TIMEOUT; // hack
-      CatDriver_HandleCommands();
-      size_t sz = transdata.tab.size(); 
-#if 0
-      printf ("ts.tx_disable=0x%x  CatDriver_CatPttActive()=%d \n",ts.tx_disable, CatDriver_CatPttActive());
-      transdata.dump(); 
-#endif
-      transdata.tab.clear(); 
-      if (*i == FT817_NOOP) // well
-	continue;
-      EXPECT_GT(sz,0);
-      EXPECT_EQ(sz,response_len);
+      check_one_cmd(*i, t);
     }
 }
 
