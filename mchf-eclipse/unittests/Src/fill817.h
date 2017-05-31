@@ -102,9 +102,31 @@ public:
 	return "FT817_????";
       };
   }; 
-  bool setcmd(const Ft817_CatCmd_t cmd, unsigned int &response_len)
+   void show_ft817() const
+   {
+     Ft817_CatCmd_t cmd = (Ft817_CatCmd_t) buf[4];
+     printf ("cmd=%d->%s\n",cmd, cmd_cstr(cmd));
+     switch (cmd)
+       {
+       case FT817_GET_FREQ:
+	 {
+	   ulong fbcd = 0;
+	   ulong v = 0;
+	   fbcd +=  ((ulong) buf[0]) << 24;
+	   fbcd +=  ((ulong) buf[1]) << 16;
+	   fbcd +=  ((ulong) buf[2]) << 8;
+	   fbcd +=  ((ulong) buf[3]);
+	   printf ("fbcd=%ld\n",fbcd);
+	 }
+	 break;
+       default:;
+       };
+   };
+   bool setcmd(const Ft817_CatCmd_t cmd, const uint16_t ee_addr, unsigned int &response_len)
   {
     //    printf ("cmd=%d->%s\n",cmd, cmd_cstr(cmd));
+    clear();
+
     response_len = 0;
     switch (cmd)
       {
@@ -117,11 +139,21 @@ public:
       case FT817_A7:
 	response_len = 9;
 	break;
+      case FT817_EEPROM_READ:
+	{
+	  //	  uint16_t ee_addr = 0x1925; // max, illegal
+	  buf[0]  = (uint8_t) (ee_addr  >> 8);
+	  buf[1]  = (uint8_t) (ee_addr & 0xff);
+	  if (ee_addr < 0x1925)
+	    response_len = 2;
+	  else
+	    response_len = 1;
+	}
+	break;
       default:
 	response_len = 1;
     };
     
-    clear();
     buf[4]  = (uint8_t) cmd;
     return true;
   };
@@ -167,10 +199,10 @@ public:
   {
     it = v.cbegin();
   };
-  bool filldata(const Ft817_CatCmd_t cmd, unsigned int &response_len) const
+  bool filldata(const Ft817_CatCmd_t cmd, const uint16_t ee_addr, unsigned int &response_len) const
   {
     fill_buf b;
-    b.setcmd(cmd, response_len);
+    b.setcmd(cmd, ee_addr, response_len);
     b.add(5);
     if (m_verbose)
       printf ("filldata 0x%x\n",cmd);
@@ -179,7 +211,7 @@ public:
   bool filldata_loop()
   {
     unsigned int response_len;
-    bool ok = filldata(*it, response_len);
+    bool ok = filldata(*it, 0x0000, response_len);
     it++;
     if (it == v.cend())
       it = v.cbegin();

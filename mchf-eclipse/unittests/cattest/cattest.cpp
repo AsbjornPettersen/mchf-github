@@ -243,10 +243,10 @@ TEST(CatDrivertest, test_debug_flag)
   EXPECT_EQ (false, debug);
 }
 
-void check_one_cmd(const Ft817_CatCmd_t cmd, fill_ft817 &t)
+void check_one_cmd(const Ft817_CatCmd_t cmd, const uint16_t ee_addr, fill_ft817 &t)
 {
   unsigned int response_len;
-  bool ok = t.filldata(cmd, response_len);
+  bool ok = t.filldata(cmd, ee_addr, response_len);
   EXPECT_EQ (true, ok);
   EXPECT_GT(response_len,0);
   
@@ -270,7 +270,12 @@ TEST(CatDrivertest, read_eeprom)
 
   Ft817_CatCmd_t cmd = FT817_EEPROM_READ;
   fill_ft817 t;
-  check_one_cmd(cmd, t);
+  uint16_t ee_addr = 0x1925; // max, illegal
+  check_one_cmd(cmd, ee_addr, t);
+#if 0
+  ee_addr = 0x1925 -1 ; // max, illegal
+  check_one_cmd(cmd, ee_addr, t);
+#endif
 }
 
 TEST(CatDrivertest, allcommands) 
@@ -278,9 +283,10 @@ TEST(CatDrivertest, allcommands)
   global_data glb;
 
   fill_ft817 t;
+  uint16_t ee_addr = 0x1925; // max, illegal
   for (auto i = t.v.cbegin(); i != t.v.cend(); i++)
     {
-      check_one_cmd(*i, t);
+      check_one_cmd(*i, ee_addr, t);
     }
 }
 

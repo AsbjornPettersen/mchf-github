@@ -103,16 +103,16 @@ int main(int argc, char **argv)
 	
 	fill_buf b;
 	unsigned int response_len;
-	b.setcmd(cmd, response_len);
+	b.setcmd(cmd, 0x0000,response_len);
 
 	bool ok = h.WriteUart(b.buf, 5);
 
-	char buf[1000];
-	memset (buf,0x00,sizeof(buf));
-	
-	int br = h.ReadUart(response_len, buf);
-	printf ("b=%d %s\n",br,buf);
-	
+	fill_buf bread;
+	int br = h.ReadUart(response_len, (char *)bread.buf);
+	printf ("b=%d %s\n",br,bread.buf);
+	if (br > 0)
+	  bread.show_ft817();
+
 	h.Close();
       }
       break;
