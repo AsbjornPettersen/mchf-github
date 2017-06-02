@@ -70,17 +70,19 @@ int main(int argc, char **argv)
 	    fill_buf b;
 	    printf ("cmd=%3d %s\n",cmd,b.cmd_cstr(cmd));
 	  }
-	std::string c = args.get_param("-port");
-	std::string comname = "COM" + c;
-	printf ("Open port %s\n",comname.c_str());
 	serialportc h;
+
+	std::string c = args.get_param("-port");
+	std::string comname;
+	h.map_com_names(c, comname);
+	printf ("Open port %s\n",comname.c_str());
+
 	if (!h.create(comname.c_str()))
 	  {
 	    printf ("can't open %s\n", comname.c_str());
 	    return 0;
 	  }
 
-	//	const std::string baudrate = "115200";
 	std::string baudrate = "4800";
 	c = args.get_param("-b");
 	if (c.length() > 0)

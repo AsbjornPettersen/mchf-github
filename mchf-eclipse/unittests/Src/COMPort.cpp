@@ -5,12 +5,7 @@
 #include <stdio.h>
 #include <string>
 
-int index2=-1,index3=-1,index4=-1,index5=-1,index6=-1,index7=-1;
-
 #if 0
-// Message handler for about box.
-INT_PTR CALLBACK Port(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{	
 SendDlgItemMessageA(hDlg, IDC_COMBO2, CB_ADDSTRING, 0, (LPARAM)"5");
 SendDlgItemMessageA(hDlg, IDC_COMBO2, CB_ADDSTRING, 0, (LPARAM)"6");
 SendDlgItemMessageA(hDlg, IDC_COMBO2, CB_ADDSTRING, 0, (LPARAM)"7");
@@ -25,46 +20,57 @@ SendDlgItemMessageA(hDlg, IDC_COMBO4, CB_ADDSTRING, 0, (LPARAM)"2");
 SendDlgItemMessageA(hDlg, IDC_COMBO5, CB_ADDSTRING, 0, (LPARAM)"Xon/Xoff");
 SendDlgItemMessageA(hDlg, IDC_COMBO5, CB_ADDSTRING, 0, (LPARAM)"Hardware");
 SendDlgItemMessageA(hDlg, IDC_COMBO5, CB_ADDSTRING, 0, (LPARAM)"None");
-
 #endif
 
-static LPVOID get_err_str(const DWORD dwerr)
+class lpvemsg
 {
-  LPVOID lpMsgBuf;
-  
-  FormatMessage( 
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-		FORMAT_MESSAGE_FROM_SYSTEM | 
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		dwerr,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-		(LPTSTR) &lpMsgBuf,
-		0,
-		NULL 
-		 );
-  return(lpMsgBuf);
-}
+public:
+  LPVOID lpe = nullptr;
+  bool get_err_str(const DWORD dwerr)
+  {    
+    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |  		
+		  FORMAT_MESSAGE_FROM_SYSTEM | 
+		  FORMAT_MESSAGE_IGNORE_INSERTS,
+		  NULL,
+		  dwerr,
+		  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
+		  (LPTSTR) &lpe,
+		  0,
+		  NULL 
+		  );
+    return(true);
+  };
+  ~lpvemsg()
+  {
+    if (lpe)
+      {
+	LocalFree(lpe);
+	lpe = nullptr;
+      }
+  };
+};
+
+
  
- static void show_err(const DWORD dwerr)
- {
-   LPVOID lpe = get_err_str(dwerr);
-   
-   printf("err=%s",(const char *)lpe);
-  LocalFree(lpe);
+static void show_err(const DWORD dwerr)
+{
+  lpvemsg l;
+  l.get_err_str(dwerr);
+  
+  printf("err=%s",(const char *)l.lpe);
 }
 
- void os_err_str(const DWORD dwerr, char *str, const int maxlen)
-  {
-  LPVOID lpe = get_err_str(dwerr);
-  if (lpe)
+void os_err_str(const DWORD dwerr, char *str, const int maxlen)
+{
+  lpvemsg l;
+  l.get_err_str(dwerr);
+  if (l.lpe)
     {
       if (maxlen > 200)
 	memset (str,0x00,200);
-      strncpy (str,(char *)lpe, maxlen);
-      LocalFree(lpe);
+      strncpy (str,(char *)l.lpe, maxlen);
     }
- }
+}
  
 class oserrinfo
 {
@@ -119,11 +125,12 @@ bool serialportc::configure(const std::string baudrate)
 {	
   bool found;
   const int index1 = baudrate_to_index(baudrate, found);
-
+  int index2=-1,index3=-1,index4=-1,index5=-1,index6=-1,index7=-1;
+ 
   memset(&PortDCB, 0x00, sizeof(PortDCB)); 
   PortDCB.DCBlength = sizeof (DCB); 
 
-  GetCommState (hPort1, &PortDCB);
+  GetCommState (hPort, &PortDCB);
 
   PortDCB.fBinary = TRUE;                         // Binary mode; no EOF check
   PortDCB.fParity = TRUE;                         // Enable parity checking 
@@ -240,7 +247,7 @@ bool serialportc::configure(const std::string baudrate)
 
 bool serialportc::configuretimeout()
 {
-  GetCommTimeouts (hPort1, &CommTimeouts); 
+  GetCommTimeouts (hPort, &CommTimeouts); 
 
   CommTimeouts.ReadIntervalTimeout = 50; 
   CommTimeouts.ReadTotalTimeoutConstant = 50; 
@@ -250,9 +257,9 @@ bool serialportc::configuretimeout()
   return true;
 }
 
-bool serialportc::purge()
+bool serialportc::purge() const
 {
-  if(PurgeComm(hPort1, PURGE_TXCLEAR | PURGE_RXCLEAR)==0) 
+  if(PurgeComm(hPort, PURGE_TXCLEAR | PURGE_RXCLEAR)==0) 
     {       
       return false; 
     }   
@@ -262,7 +269,7 @@ bool serialportc::purge()
 bool serialportc::set_configured()
 {
   oserrinfo oerr;
-  if (!SetCommState (hPort1, &PortDCB)) 
+  if (!SetCommState (hPort, &PortDCB)) 
     { 
       DWORD dw = oerr.getlasterr();
       printf("%s\n",oerr.get_errstr());
@@ -271,7 +278,7 @@ bool serialportc::set_configured()
       return false; 
     } 
 
-  if (!SetCommTimeouts (hPort1, &CommTimeouts)) 
+  if (!SetCommTimeouts (hPort, &CommTimeouts)) 
     { 
       Close();   
       return false; 
@@ -283,16 +290,14 @@ bool serialportc::WriteUart(unsigned char *buf1, const int len)
 {
   DWORD dwNumBytesWritten;
   
-  WriteFile (hPort1,buf1, len,&dwNumBytesWritten,NULL);			
+  WriteFile (hPort,buf1, len,&dwNumBytesWritten,NULL);			
   
   if(dwNumBytesWritten > 0)
     {
-      //MessageBox (NULL, L"Transmission Success" ,L"Success", MB_OK);
       return true;
     }  
   else 
     {
-      //      MessageBox (NULL, L"Transmission Failed" ,L"Error", MB_OK);
       return false;	
     }
 }
@@ -303,7 +308,7 @@ int serialportc::ReadUart(const unsigned int len, char *buf2)
   DWORD dwRead;
   unsigned long retlen=0;
     
-  if (!ReadFile(hPort1, buf2, len, &dwRead,  NULL)) 	
+  if (!ReadFile(hPort, buf2, len, &dwRead,  NULL)) 	
     {	  	  
     }
   else
@@ -320,5 +325,24 @@ int serialportc::ReadUart(const unsigned int len, char *buf2)
     return 0;     //else no data has been read
 }
 
+
+ bool serialportc::map_com_names(const std::string numport, std::string &comname) const
+ {
+  int port = std::atoi(numport.c_str());
+  if (port <= 0)
+    return false;
+  
+  comname = "COM" + numport;
+  if (port >= 10)
+    {
+      if (port > 100)
+	{
+	  return false;
+	}
+      std::string c = "\\\\.\\" + comname;
+      comname = c;      
+    }
+  return true;
+}
 
 

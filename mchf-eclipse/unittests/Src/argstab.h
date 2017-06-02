@@ -21,29 +21,7 @@ public:
     std::string c = *it;
     return *c.c_str();
   };
-  std::string get_param(const std::string firstoption) const
-  {
-    std::string param;
-    for (auto it = tab.cbegin(); it != tab.cend(); ++it) 
-      {       
-	std::string c = *it;
-	if (c == firstoption)
-	  {
-	    it++;
-	    if (it == tab.cend())
-	      return param;
-	    param = *it;
-	    return param;
-	  }
-      }
-    return param;
-  };
-  bool get_param_uint(const std::string firstoption, unsigned int &val) const
-  {
-    std::string c = get_param(firstoption);
-    if (c.empty())
-      return false;
-    val = (unsigned int) std::atoi(c.c_str());
-    return true;
-  };
+  bool get_flag(const std::string &str) const;
+  std::string get_param(const std::string firstoption) const;
+  bool get_param_uint(const std::string firstoption, unsigned int &val) const;
 };
