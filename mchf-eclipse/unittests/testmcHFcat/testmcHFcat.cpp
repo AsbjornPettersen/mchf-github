@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 	unsigned int response_len;
 	b.setcmd(cmd, 0x0000,response_len);
 
-	bool ok = h.WriteUart(b.buf, 5);
+	bool ok = h.WriteUart(b.cbuf(), 5);
 
 	fill_buf bread;
 	int br = h.ReadUart(response_len, (char *)bread.buf);

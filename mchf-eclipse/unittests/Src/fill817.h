@@ -57,8 +57,14 @@ public:
   {
     memset(buf, 0x00, sizeof(buf));
   };
+  unsigned char *cbuf() const { return (unsigned char *)buf; };
   const char *cmd_cstr(const Ft817_CatCmd_t cmd) const;
   void show_ft817() const;
+  Ft817_CatCmd_t getcmd() const
+  {
+    Ft817_CatCmd_t cmd = (Ft817_CatCmd_t) buf[4];
+    return cmd;
+  };
   bool setcmd(const Ft817_CatCmd_t cmd, const uint16_t ee_addr, unsigned int &response_len);
   bool add (const unsigned int len)  
   {

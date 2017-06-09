@@ -29,12 +29,13 @@ int __QSUB(int i, int b) { return 0; }
 //#include "../../misc/config_storage.c"
 
 //#include "../../basesw/mcHF/Src/i2c.c"
+
 I2C_HandleTypeDef hi2c2;
 
-unsigned short __cdecl MCHF_I2C_ReadBlock(I2C_TypeDef *,unsigned char,unsigned short,unsigned short,unsigned char *,unsigned int) {  return 0;}
-unsigned short __cdecl MCHF_I2C_ReadRegister(I2C_TypeDef *,unsigned char,unsigned short,unsigned short,unsigned char *){  return 0;}
-unsigned short __cdecl MCHF_I2C_WriteRegister(I2C_TypeDef *,unsigned char,unsigned short,unsigned short,unsigned char) {  return 0;}
-unsigned short __cdecl MCHF_I2C_WriteBlock(I2C_TypeDef *,unsigned char,unsigned short,unsigned short,unsigned char *,unsigned int) {  return 0;}
+unsigned short __cdecl MCHF_I2C_ReadBlock(I2C_HandleTypeDef *,unsigned char,unsigned short,unsigned short,unsigned char *, unsigned int) {  return 0;}
+unsigned short __cdecl MCHF_I2C_ReadRegister(I2C_HandleTypeDef *,unsigned char,unsigned short,unsigned short,unsigned char *){  return 0;}
+unsigned short __cdecl MCHF_I2C_WriteRegister(I2C_HandleTypeDef *,unsigned char,unsigned short,unsigned short,unsigned char) {  return 0;}
+unsigned short __cdecl MCHF_I2C_WriteBlock(I2C_HandleTypeDef *,unsigned char,unsigned short,unsigned short,unsigned char *,unsigned int) {  return 0;}
 HAL_StatusTypeDef HAL_I2C_IsDeviceReady(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint32_t Trials, uint32_t Timeout)
 {
   HAL_StatusTypeDef s = HAL_OK;

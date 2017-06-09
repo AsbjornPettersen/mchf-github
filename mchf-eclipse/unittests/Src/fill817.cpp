@@ -74,7 +74,7 @@ const char *fill_buf::cmd_cstr(const Ft817_CatCmd_t cmd) const
 
 void fill_buf::show_ft817() const
 {
-  Ft817_CatCmd_t cmd = (Ft817_CatCmd_t) buf[4];
+  Ft817_CatCmd_t cmd = getcmd();
   printf ("cmd=%d->%s\n",cmd, cmd_cstr(cmd));
   switch (cmd)
     {
