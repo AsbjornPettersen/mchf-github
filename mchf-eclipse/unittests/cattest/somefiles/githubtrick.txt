@@ -1,0 +1,12 @@
+git remote add upstream  https://github.com/df8oe/mchf-github.git
+git fetch upstream
+git checkout active-devel
+git reset --hard upstream/active-devel
+git push origin active-devel --force 
+
+--------------------------------------
+Local: Merge unittest and active-devel
+git checkout unittests
+git merge origin/active-devel
+git push
+

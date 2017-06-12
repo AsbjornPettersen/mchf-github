@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include <stdio.h>
 
+//#define WINDOWS_ONLY
+
 #define ARM_MATH_CM4
 #define _GNU_SOURCE 
 #define CORTEX_M4 
@@ -9,6 +11,7 @@
 #define USE_FULL_ASSERT
 
 bool is_vfo_b(void) { return false; }
+#if 0
 int __SMUAD(int , int ) { return 0; }
 int __SMLALD(int, int, int) { return 0; }
 int __DSB() { return 0; }
@@ -22,9 +25,19 @@ uint32_t __builtin_bswap32(uint32_t val) // need to convert big / little endian!
 {
   return val; // tbd
 }
-
+#else
+extern int __SMUAD(int , int );
+extern int __SMLALD(int, int, int) ;
+extern int __DSB();
+extern int __NOP();
+extern int __CLZ(int i);
+extern int __SSAT(int i, int b);
+extern int __QADD(int i, int b);
+extern int __QSUB(int i, int b);
+extern uint32_t __builtin_bswap32(uint32_t val) ;
 extern uint8_t CDC_Transmit_FS(uint8_t* Buf,uint32_t Len);
-
+#endif
+extern uint8_t CDC_Transmit_FS(uint8_t* Buf,uint32_t Len);
 
 #include "../../drivers/cat/cat_driver.c"
 #include "../Src/fill817.h"
