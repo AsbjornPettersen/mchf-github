@@ -442,7 +442,7 @@ static void mchf_board_power_down_init(void)
     HAL_GPIO_Init(POWER_DOWN_PIO, &GPIO_InitStructure);
 
     // Set initial state - low to enable main regulator
-    POWER_DOWN_PIO->BSRR = POWER_DOWN  << 16U;
+    GPIO_ResetBits(POWER_DOWN_PIO,POWER_DOWN);
 }
 
 // Band control GPIOs setup
@@ -540,9 +540,13 @@ void mchf_board_init(void)
     // we could now implement some error strategy if no display is present
     // i.e. 0 is returned
 
-
-    ts.rtc_present = MchfRtc_enabled();
-
+#ifdef STM32F4
+    // on a STM32F4 we can have the internal RTC only if there is an SPI display.
+    if (ts.display->display_type == DISPLAY_HY28A_SPI || ts.display->display_type == DISPLAY_HY28B_SPI)
+#endif
+    {
+        ts.rtc_present = MchfRtc_enabled();
+    }
     // we need to find out which keyboard layout before we init the GPIOs to use it.
     // at this point we have to have called the display init and the rtc init
     // in order to know which one to use.
@@ -596,8 +600,22 @@ void MchfBoard_HandlePowerDown() {
  */
 void mchf_powerdown()
 {
-    POWER_DOWN_PIO->BSRR = POWER_DOWN;
-    for(;;) {}
+    // we set this to input and add a pullup config
+    // this seems to be more reliably handling power down
+    // on F7 by rising the voltage to high enough levels.
+    // simply setting the OUTPUT to high did not do the trick here
+    // worked on F4, though.
+
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    GPIO_InitStructure.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStructure.Pull = GPIO_PULLUP;
+    GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
+
+    GPIO_InitStructure.Pin = POWER_DOWN;
+    HAL_GPIO_Init(POWER_DOWN_PIO, &GPIO_InitStructure);
+
+    for(;;) { asm("nop"); }
 }
 //*----------------------------------------------------------------------------
 //* Function Name       : mchf_board_post_init

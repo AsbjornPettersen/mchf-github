@@ -25,6 +25,12 @@
 #include "spi.h"
 #include "gpio.h"
 
+#ifdef STM32F7
+#include "stm32f7xx_hal_flash_ex.h"
+#else
+#include "stm32f4xx_hal_flash_ex.h"
+#endif
+
 
 
 #include <unistd.h>
@@ -73,6 +79,8 @@ static void BL_DisplayInit()
     GPIO_InitStructure.Pin = TP_CS;
 
     HAL_GPIO_Init(TP_CS_PIO, &GPIO_InitStructure);
+
+    GPIO_SetBits(TP_CS_PIO, TP_CS);
 #endif
 
     UiLcdHy28_Init();
@@ -115,7 +123,7 @@ void BL_Idle_Application(void)
     if(mchfBl_ButtonGetState(BUTTON_POWER) == 0 && power_was_up == true)
     {
         // we only switch off, if power button was at least once seen as being released and pressed in the idle loop
-        mcHF_PowerHoldOff();
+        mcHF_PowerOff();
     }
     else
     {
@@ -184,7 +192,7 @@ int BL_MSC_Application(void)
             /* switch off if power button is pressed */
             if(mchfBl_ButtonGetState(BUTTON_POWER) == 0)
             {
-                mcHF_PowerHoldOff();
+                mcHF_PowerOff();
             }
         }
 
@@ -240,17 +248,21 @@ int bootloader_main()
 {
     /* initialization */
     BSP_Init();
+#if 0
     mcHF_PowerHoldOff();
 
 
-// *(uint32_t*)(SRAM2_BASE+5) = 0x29;	// signature for DF8OE development features
-// *(uint32_t*)(SRAM2_BASE+10) = 0x29;	// signature for special beta-testing features
+//   *(uint32_t*)(SRAM2_BASE+5) = 0x29;	// signature for DF8OE development features
+//    *(uint32_t*)(SRAM2_BASE+10) = 0x29;	// signature for special beta-testing features
     if( *(uint32_t*)(SRAM2_BASE) != 0x55)		// no reboot requested?
     {
         // we wait for a longer time
         HAL_Delay(300);
     }
+#else
+#endif
     mcHF_PowerHoldOn();
+    HAL_Delay(50);
 
     if (mchfBl_ButtonGetState(BUTTON_BANDP) == 0)
     {
@@ -317,6 +329,19 @@ void mchfBl_CheckAndGoForDfuBoot()
         const uint32_t dfu_boot_start = 0x00000000;
 #else
         const uint32_t dfu_boot_start = 0x1FF00000;
+        // if in dual boot mode (which is required for proper operation
+        // we need to
+        #if defined (FLASH_OPTCR_nDBANK)
+            HAL_FLASH_OB_Unlock();
+            if ((FLASH->OPTCR & (FLASH_OPTCR_nDBANK_Msk|FLASH_OPTCR_nDBOOT_Msk)) != FLASH_OPTCR_nDBOOT)
+            {
+                FLASH->OPTCR |= FLASH_OPTCR_nDBOOT; // set == disable dual boot
+                FLASH->OPTCR &= ~FLASH_OPTCR_nDBANK; // unset == enabled dual bank mode
+            }
+            HAL_FLASH_OB_Launch();
+            HAL_FLASH_OB_Lock();
+        #endif
+
 #endif
         mchfBl_JumpToApplication(dfu_boot_start);
         // start the STM32Fxxx bootloader at address dfu_boot_start;
