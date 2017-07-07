@@ -36,6 +36,7 @@ enum UpdateFrequencyMode_t
 #define 	T_STEP_1HZ					1
 #define 	T_STEP_10HZ					10
 #define 	T_STEP_100HZ					100
+#define 	T_STEP_500HZ					500
 #define 	T_STEP_1KHZ					1000
 #define 	T_STEP_5KHZ					5000
 #define 	T_STEP_9KHZ					9000
@@ -49,6 +50,7 @@ enum
     T_STEP_1HZ_IDX = 0,
     T_STEP_10HZ_IDX,
     T_STEP_100HZ_IDX,
+    T_STEP_500HZ_IDX,
     T_STEP_1KHZ_IDX,
     T_STEP_5KHZ_IDX,
     T_STEP_9KHZ_IDX,
@@ -256,13 +258,12 @@ enum
 // Power supply
 typedef struct PowerMeter
 {
-    ulong	 skip;
+    uint32_t    pwr_aver;
+    uint32_t    p_curr;
 
-    ulong	 pwr_aver;
-    uchar	 p_curr;
+    uint32_t    voltage;
 
-    uint32_t voltage;
-    char	 digits[6]; // voltage in millivolt upto 99.000 volt
+    bool        undervoltage_detected;
 } PowerMeter;
 
 
@@ -285,7 +286,7 @@ void	UiDriver_LcdBlankingStartTimer(void);
 void	UiDriver_ShowDebugText(const char*);
 void 	UiDriver_ChangeTuningStep(uchar is_up);
 void	UiDriver_UpdateDisplayAfterParamChange();
-void    UiDriver_ShowStartUpScreen(ulong hold_time);
+void    UiDriver_ShowStartUpScreen(uint32_t hold_time);
 void    UiDriver_DoCrossCheck(char cross[],char* xt_corr, char* yt_corr);
 void    UiDriver_ToggleVfoAB();
 void    UiDriver_SetSplitMode(bool mode_active);

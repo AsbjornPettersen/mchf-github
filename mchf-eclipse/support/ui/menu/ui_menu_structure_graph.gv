@@ -2,9 +2,9 @@
 #  
 #  WARNING: generated data!  DO NOT EDIT MANUALLY ! ! !
 #  
-#  generated at  2017-06-22T09:29:10  by "./ui_menu_structure_graph.py"
+#  generated at  2017-07-07T06:30:59  by "./ui_menu_structure_graph.py"
 #  
-#  mcHF SDR TRX v2.3.8 - Menu Structure Diagram in DOT-language
+#  mcHF SDR TRX v2.5.11 - Menu Structure Diagram in DOT-language
 #  
 #  (see <http://www.graphviz.org/content/dot-language> )
 #  
@@ -12,7 +12,7 @@
     digraph mcHF_menus {
        
         graph [ fontsize = 14,
-                label = "\nmcHF v2.3.8 - Menus Overview\ngenerated at  2017-06-22T09:29:10  by \"./ui_menu_structure_graph.py\"",
+                label = "\nmcHF v2.5.11 - Menus Overview\ngenerated at  2017-07-07T06:30:59  by \"./ui_menu_structure_graph.py\"",
               ];
        
         rankdir=LR
@@ -64,6 +64,11 @@
         
         "MENU_DEBUG" [
              label = "MENU_DEBUG | Debug/Exper. Settings"
+             shape = record
+             ];
+        
+        "MENU_HALL_OF_FAME" [
+             label = "MENU_HALL_OF_FAME | Hall of Fame"
              shape = record
              ];
         
@@ -142,18 +147,18 @@
              shape = record
              ];
         
+        "MENU_AGC_WDSP_SWITCH" [
+             label = "MENU_AGC_WDSP_SWITCH | AGC Mode Switch"
+             shape = record
+             ];
+        
         "MENU_AGC_MODE" [
-             label = "MENU_AGC_MODE | AGC Mode"
+             label = "MENU_AGC_MODE | AGC STD Mode"
              shape = record
              ];
         
         "MENU_CUSTOM_AGC" [
-             label = "MENU_CUSTOM_AGC | Custom AGC (+=Slower)"
-             shape = record
-             ];
-        
-        "MENU_AGC_WDSP_SWITCH" [
-             label = "MENU_AGC_WDSP_SWITCH | AGC WDSP switch"
+             label = "MENU_CUSTOM_AGC | AGC STD Custom Speed (+=Slower)"
              shape = record
              ];
         
@@ -173,27 +178,27 @@
              ];
         
         "MENU_AGC_WDSP_THRESH" [
-             label = "MENU_AGC_WDSP_THRESH | AGC Threshold"
+             label = "MENU_AGC_WDSP_THRESH | AGC WDSP Threshold"
              shape = record
              ];
         
         "MENU_AGC_WDSP_HANG_ENABLE" [
-             label = "MENU_AGC_WDSP_HANG_ENABLE | AGC Hang enable"
+             label = "MENU_AGC_WDSP_HANG_ENABLE | AGC WDSP Hang enable"
              shape = record
              ];
         
         "MENU_AGC_WDSP_HANG_TIME" [
-             label = "MENU_AGC_WDSP_HANG_TIME | AGC Hang time"
+             label = "MENU_AGC_WDSP_HANG_TIME | AGC WDSP Hang time"
              shape = record
              ];
         
         "MENU_AGC_WDSP_HANG_THRESH" [
-             label = "MENU_AGC_WDSP_HANG_THRESH | AGC Hang threshold"
+             label = "MENU_AGC_WDSP_HANG_THRESH | AGC WDSP Hang threshold"
              shape = record
              ];
         
         "MENU_AGC_WDSP_TAU_HANG_DECAY" [
-             label = "MENU_AGC_WDSP_TAU_HANG_DECAY | AGC Hang Decay"
+             label = "MENU_AGC_WDSP_TAU_HANG_DECAY | AGC WDSP Hang Decay"
              shape = record
              ];
         
@@ -254,6 +259,11 @@
         
         "MENU_TCXO_C_F" [
              label = "MENU_TCXO_C_F | TCXO Temp. (C/F)"
+             shape = record
+             ];
+        
+        "MENU_LOW_POWER_SHUTDOWN" [
+             label = "MENU_LOW_POWER_SHUTDOWN | Low Voltage Shutdown"
              shape = record
              ];
         
@@ -422,6 +432,11 @@
              shape = record
              ];
         
+        "MENU_KEYER_WEIGHT" [
+             label = "MENU_KEYER_WEIGHT | CW Keyer Weight"
+             shape = record
+             ];
+        
         "MENU_SIDETONE_GAIN" [
              label = "MENU_SIDETONE_GAIN | CW Sidetone Gain"
              shape = record
@@ -549,6 +564,11 @@
         
         "CONFIG_VOLTMETER_CALIBRATION" [
              label = "CONFIG_VOLTMETER_CALIBRATION | Voltmeter Cal."
+             shape = record
+             ];
+        
+        "CONFIG_LOW_POWER_THRESHOLD" [
+             label = "CONFIG_LOW_POWER_THRESHOLD | Low Voltage Threshold"
              shape = record
              ];
         
@@ -997,6 +1017,61 @@
              shape = record
              ];
         
+        "0" [
+             label = "0 | M0NKA  (Chris) founder of mcHF"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | KA7OEI (Clint) 1st great work"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | DF8OE  (Andreas)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | DL4SAI (Harald)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | DB4PLE (Danilo)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | DD4WH  (Frank)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | DL2FW  (Michael)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | HB9OCQ (Stephan)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 |        (Asbjorn)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | YL3AKE (Eriks)"
+             shape = record
+             ];
+        
+        "0" [
+             label = "0 | PA7N   (Erwin)"
+             shape = record
+             ];
+        
         #  -  -  -  -
 
         subgraph "MENU_CONF" {
@@ -1043,6 +1118,8 @@
             
             MENU_CONF -> CONFIG_VOLTMETER_CALIBRATION
             
+            MENU_CONF -> CONFIG_LOW_POWER_THRESHOLD
+            
             MENU_CONF -> CONFIG_FREQUENCY_CALIBRATE
             
             MENU_CONF -> CONFIG_FWD_REV_PWR_DISP
@@ -1085,7 +1162,7 @@
             
             MENU_CONF -> CONFIG_RESET_SER_EEPROM
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1121,7 +1198,7 @@
             
             MENU_FILTER -> CONFIG_SSB_TX_FILTER
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1159,11 +1236,11 @@
             
             MENU_BASE -> MENU_RF_GAIN_ADJ
             
+            MENU_BASE -> MENU_AGC_WDSP_SWITCH
+            
             MENU_BASE -> MENU_AGC_MODE
             
             MENU_BASE -> MENU_CUSTOM_AGC
-            
-            MENU_BASE -> MENU_AGC_WDSP_SWITCH
             
             MENU_BASE -> MENU_AGC_WDSP_MODE
             
@@ -1205,13 +1282,15 @@
             
             MENU_BASE -> MENU_TCXO_C_F
             
+            MENU_BASE -> MENU_LOW_POWER_SHUTDOWN
+            
             MENU_BASE -> MENU_BACKUP_CONFIG
             
             MENU_BASE -> MENU_RESTORE_CONFIG
             
             MENU_BASE -> MENU_RESTART_CODEC
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1235,7 +1314,9 @@
             
             MENU_TOP -> MENU_DEBUG
             
-        }  ## END subgraph MENU_DEBUG
+            MENU_TOP -> MENU_HALL_OF_FAME
+            
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1305,7 +1386,7 @@
             
             MENU_POW -> CONFIG_FWD_REV_COUPLING_15M_ADJ
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1347,7 +1428,7 @@
             
             MENU_SYSINFO -> INFO_LICENCE
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1358,6 +1439,8 @@
             MENU_CW -> MENU_KEYER_MODE
             
             MENU_CW -> MENU_KEYER_SPEED
+            
+            MENU_CW -> MENU_KEYER_WEIGHT
             
             MENU_CW -> MENU_SIDETONE_GAIN
             
@@ -1371,7 +1454,7 @@
             
             MENU_CW -> MENU_CW_AUTO_MODE_SELECT
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1391,7 +1474,37 @@
             
             MENU_DEBUG -> MENU_DEBUG_NEW_NB
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
+    
+        #  -  -  -  -
+
+        subgraph "MENU_HALL_OF_FAME" {
+            label = "MENU_HALL_OF_FAME beef.0f.dead.e5e1"
+
+    
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+            MENU_HALL_OF_FAME -> 0
+            
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
 
@@ -1455,7 +1568,7 @@
             
             MENU_DISPLAY -> MENU_S_METER
             
-        }  ## END subgraph MENU_DEBUG
+        }  ## END subgraph MENU_HALL_OF_FAME
     
         #  -  -  -  -
     }
