@@ -107,8 +107,11 @@ typedef struct SWRMeter
 {
     float fwd_calc;         // forward power readings in A/D units
     float rev_calc;         // reverse power readings in A/D units
-    float fwd_pwr;          // forward power in watts
-    float rev_pwr;          // reverse power in watts
+    float fwd_pwr;          // forward power in watts current measurement
+    float rev_pwr;          // reverse power in watts current measurement
+    float fwd_pwr_avg;      // forward power in watts averaged
+    float rev_pwr_avg;      // reverse power in watts averaged
+
     float fwd_dbm;          // forward power in dBm
     float rev_dbm;          // reverse power in dBm
     float vswr;             // vswr
@@ -189,6 +192,7 @@ bool RadioManagement_IsApplicableDemodMode(uint32_t demod_mode);
 void RadioManagement_SwitchTxRx(uint8_t txrx_mode, bool tune_mode);
 void RadioManagement_SetBandPowerFactor(uchar band);
 bool RadioManagement_LSBActive(uint16_t dmod_mode);
+bool RadioManagement_USBActive(uint16_t dmod_mode);
 void RadioManagement_SetBandPowerFactor(uchar band);
 void RadioManagement_SetPaBias();
 bool RadioManagement_CalculateCWSidebandMode(void);

@@ -37,6 +37,7 @@ enum MENU_GROUP_ITEM
     MENU_CW,
     MENU_DISPLAY,
     MENU_DEBUG,
+    MENU_HALL_OF_FAME,
 };
 
 
@@ -50,6 +51,7 @@ const MenuDescriptor topGroup[] =
     { MENU_TOP, MENU_GROUP, MENU_POW, NULL, "PA Configuration", UiMenuDesc("Menu for power amplifier parameter and tune function adjustments") },
     { MENU_TOP, MENU_GROUP, MENU_SYSINFO, NULL, "System Info", UiMenuDesc("Lists various system info values") },
     { MENU_TOP, MENU_GROUP, MENU_DEBUG, NULL, "Debug/Exper. Settings", UiMenuDesc("As the name says, contains debug or expert settings usually not relevant for operating the mcHF") },
+    { MENU_TOP, MENU_GROUP, MENU_HALL_OF_FAME, NULL, "Hall of Fame", UiMenuDesc("Thanks to all who contributed to the project") },
     { MENU_TOP, MENU_STOP, 0, NULL, NULL, UiMenuDesc("") }
 };
 
@@ -71,17 +73,17 @@ const MenuDescriptor baseGroup[] =
     { MENU_BASE, MENU_ITEM, MENU_FM_TONE_BURST_MODE, NULL, "FM Tone Burst", UiMenuDesc("Enabled sending of short tone at beginning of each FM transmission. Used to open repeaters. Available frequencies are 1750 Hz and 2135 Hz.") },
     { MENU_BASE, MENU_ITEM, MENU_FM_DEV_MODE, NULL, "FM Deviation", UiMenuDesc("Select between normal and narrow deviation (5 and 2.5kHz) for FM RX/TX") },
     { MENU_BASE, MENU_ITEM, MENU_RF_GAIN_ADJ, NULL, "RF Gain", UiMenuDesc("RF Receive Gain. This setting is also accessible via Encoder 2, RFG.") }, // also via knob
-    { MENU_BASE, MENU_ITEM, MENU_AGC_MODE, NULL, "AGC Mode", UiMenuDesc("Automatic Gain Control Mode setting. You may select preconfigured settings (SLOW,MED,FAST), define settings yourself (CUSTOM) or use MANUAL (no AGC, use RFG to control gain") },
-    { MENU_BASE, MENU_ITEM, MENU_CUSTOM_AGC, NULL, "Custom AGC (+=Slower)", UiMenuDesc("If AGC is set to CUSTOM, this controls the speed setting of AGC") },
-    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_SWITCH, NULL, "AGC WDSP switch", UiMenuDesc("You can choose between two different AGC systems here: ´Standard AGC´ and ´WDSP AGC´.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_SWITCH, NULL, "AGC Mode Switch", UiMenuDesc("You can choose between two different AGC systems here: ´Standard AGC´ and ´WDSP AGC´.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_MODE, NULL, "AGC STD Mode", UiMenuDesc("Standard AGC: Automatic Gain Control Mode setting. You may select preconfigured settings (SLOW,MED,FAST), define settings yourself (CUSTOM) or use MANUAL (no AGC, use RFG to control gain") },
+    { MENU_BASE, MENU_ITEM, MENU_CUSTOM_AGC, NULL, "AGC STD Custom Speed (+=Slower)", UiMenuDesc("Standard AGC:  If AGC STD Mode is set to CUSTOM, this controls the speed setting of AGC") },
     { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_MODE, NULL, "AGC WDSP Mode", UiMenuDesc("Choose a bundle of preset AGC parameters for the WDSP AGC: FAST / MED / SLOW / LONG / very LONG or switch OFF the AGC.") },
     { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_SLOPE, NULL, "AGC WDSP Slope", UiMenuDesc("Slope of the AGC is the difference between the loudest signal and the quietest signal after the AGC action has taken place. Given in dB.") },
     { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_TAU_DECAY, NULL, "AGC WDSP Decay", UiMenuDesc("Time constant for the AGC decay (speed of recovery of the AGC gain) in milliseconds.") },
-    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_THRESH, NULL, "AGC Threshold", UiMenuDesc("´Threshold´ = ´Knee´ of the AGC: input signal level from which on the AGC action takes place. AGC threshold should be placed/adjusted just above the band noise for every particular RX situation to allow for optimal AGC action. The blue AGC box indicates when AGC action takes place and helps in adjusting this threshold.") },
-    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_HANG_ENABLE, NULL, "AGC Hang enable", UiMenuDesc("Enable/Disable Hang AGC function: If enabled: after the signal has decreased, the gain of the AGC is held constant for a certain time period (the hang time) in order to allow for speech pauses without disturbing noise because of fast acting AGC.") },
-    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_HANG_TIME, NULL, "AGC Hang time", UiMenuDesc("Hang AGC: hang time is the time period over which the AGC gain is held constant when in AGC Hang mode. After this period the gain is increased fast.") },
-    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_HANG_THRESH, NULL, "AGC Hang threshold", UiMenuDesc("´Threshold´ for the Hang AGC: Hang AGC is useful for medium to strong signals. The Hang threshold determines the signal strength a signal has to exceed for Hang AGC to take place.") },
-    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_TAU_HANG_DECAY, NULL, "AGC Hang Decay", UiMenuDesc("Time constant for the Hang AGC decay (speed of recovery of the AGC gain after hang time has expired) in milliseconds.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_THRESH, NULL, "AGC WDSP Threshold", UiMenuDesc("´Threshold´ = ´Knee´ of the AGC: input signal level from which on the AGC action takes place. AGC threshold should be placed/adjusted just above the band noise for every particular RX situation to allow for optimal AGC action. The blue AGC box indicates when AGC action takes place and helps in adjusting this threshold.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_HANG_ENABLE, NULL, "AGC WDSP Hang enable", UiMenuDesc("Enable/Disable Hang AGC function: If enabled: after the signal has decreased, the gain of the AGC is held constant for a certain time period (the hang time) in order to allow for speech pauses without disturbing noise because of fast acting AGC.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_HANG_TIME, NULL, "AGC WDSP Hang time", UiMenuDesc("Hang AGC: hang time is the time period over which the AGC gain is held constant when in AGC Hang mode. After this period the gain is increased fast.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_HANG_THRESH, NULL, "AGC WDSP Hang threshold", UiMenuDesc("´Threshold´ for the Hang AGC: Hang AGC is useful for medium to strong signals. The Hang threshold determines the signal strength a signal has to exceed for Hang AGC to take place.") },
+    { MENU_BASE, MENU_ITEM, MENU_AGC_WDSP_TAU_HANG_DECAY, NULL, "AGC WDSP Hang Decay", UiMenuDesc("Time constant for the Hang AGC decay (speed of recovery of the AGC gain after hang time has expired) in milliseconds.") },
     { MENU_BASE, MENU_ITEM, MENU_CODEC_GAIN_MODE, NULL, "RX Codec Gain", UiMenuDesc("Sets the Codec IQ signal gain. Higher values represent higher gain. If set to AUTO the mcHF controls the gain so that the best dynamic range is used.") },
 
     { MENU_BASE, MENU_ITEM, MENU_RX_FREQ_CONV, NULL, "RX/TX Freq Xlate", UiMenuDesc("Controls offset of the receiver IQ signal base frequency from the dial frequency. Use of +/-12Khz is recommended. Switching it to OFF is not recommended as it disables certain features.") },
@@ -99,6 +101,7 @@ const MenuDescriptor baseGroup[] =
 
     { MENU_BASE, MENU_ITEM, MENU_TCXO_MODE, NULL, "TCXO Off/On/Stop", UiMenuDesc("The software TCXO can be turned ON (set frequency is adjusted so that generated frequency matches the wanted frequency); OFF (no correction or measurement done); or STOP (no correction but measurement).") },
     { MENU_BASE, MENU_ITEM, MENU_TCXO_C_F, NULL, "TCXO Temp. (C/F)", UiMenuDesc("Show the measure TCXO temperature in Celsius or Fahrenheit.") },
+    { MENU_BASE, MENU_ITEM, MENU_LOW_POWER_SHUTDOWN, NULL, "Low Voltage Shutdown", UiMenuDesc("Shutdown automatically when supply voltage is below threshold for 60 seconds (only in RX).") },
     { MENU_BASE, MENU_ITEM, MENU_BACKUP_CONFIG, NULL, "Backup Config", UiMenuDesc("Backup your I2C Configuration to flash. If you don't have suitable I2C EEPROM installed this function is not available.") },
     { MENU_BASE, MENU_ITEM, MENU_RESTORE_CONFIG, NULL, "Restore Config", UiMenuDesc("Restore your I2C Configuration from flash. If you don't have suitable I2C EEPROM installed this function is not available.") },
     { MENU_BASE, MENU_ITEM, MENU_RESTART_CODEC, NULL, "Restart Codec", UiMenuDesc("Sometimes there is a problem with the I2S IQ signal stream from the Codec, resulting in mirrored signal reception. Restarting the CODEC Stream will cure that problem. Try more than once, if first call did not help.") },
@@ -143,6 +146,7 @@ const MenuDescriptor cwGroup[] =
 //    { MENU_CW, MENU_ITEM, MENU_CW_WIDE_FILT,"028","Wide Filt in CW Mode", UiMenuDesc(":soon:") },
     { MENU_CW, MENU_ITEM, MENU_KEYER_MODE, NULL, "CW Keyer Mode", UiMenuDesc("Select how the mcHF interprets the connected keyer signals. Supported modes: Iambic A and B Keyer (IAM A/B), Straight Key (STR_K), and Ultimatic Keyer (ULTIM)") },
     { MENU_CW, MENU_ITEM, MENU_KEYER_SPEED, NULL, "CW Keyer Speed", UiMenuDesc("Keyer Speed for the automatic keyer modes in WpM. Also changeable via Encoder 3 if in CW Mode.") },
+    { MENU_CW, MENU_ITEM, MENU_KEYER_WEIGHT, NULL, "CW Keyer Weight", UiMenuDesc("Keyer Dit/Pause ratio for the automatic keyer modes. Higher values increase length of dit, decreases length of pause so that the total time is still according to the set WpM value.") },
     { MENU_CW, MENU_ITEM, MENU_SIDETONE_GAIN, NULL, "CW Sidetone Gain", UiMenuDesc("Audio volume for the monitor sidetone in CW TX. Also changeable via Encoder 1 if in CW Mode.") },
     { MENU_CW, MENU_ITEM, MENU_SIDETONE_FREQUENCY, NULL, "CW Side/Offset Freq", UiMenuDesc("Sidetone Frequency (also Offset frequency, see CW Freq. Offset below)") },
     { MENU_CW, MENU_ITEM, MENU_PADDLE_REVERSE, NULL, "CW Paddle Reverse", UiMenuDesc("Dit is Dah and Dah is Dit. Use if your keyer needs reverse meaning of the paddles.") },
@@ -189,6 +193,7 @@ const MenuDescriptor confGroup[] =
 
     { MENU_CONF, MENU_ITEM, MENU_REVERSE_TOUCHSCREEN, NULL, "Reverse Touchscreen", UiMenuDesc("Some touchscreens have the touch coordiantes reversed. In this case, select ON") },
     { MENU_CONF, MENU_ITEM, CONFIG_VOLTMETER_CALIBRATION, NULL, "Voltmeter Cal.", UiMenuDesc("Adjusts the displayed value of the voltmeter.") },
+    { MENU_CONF, MENU_ITEM, CONFIG_LOW_POWER_THRESHOLD, NULL, "Low Voltage Threshold", UiMenuDesc("Voltage threshold for voltage warning colors and auto shutdown.") },
     { MENU_CONF, MENU_ITEM, CONFIG_FREQUENCY_CALIBRATE, NULL, "Freq. Calibrate", UiMenuDesc("Adjust the frequency correction of the local oscillator. Measure TX frequency and adjust until both match. Or use receive a know reference signal and zero-beat it and then adjust. More information in the Wiki.") },
     { MENU_CONF, MENU_ITEM, CONFIG_FWD_REV_PWR_DISP, NULL, "Pwr. Display mW", UiMenuDesc("Shows the forward and reverse power values in mW, can be used to calibrate the SWR meter.") },
     { MENU_CONF, MENU_ITEM, CONFIG_RF_FWD_PWR_NULL, NULL, "Pwr. Det. Null", UiMenuDesc(" Set the forward and reverse power sensors ADC zero power offset. This setting is enabled ONLY when Disp. Pwr (mW), is enabled. Needs SWR meter hardware modification to work. See Wiki Adjustment and Calibration.") },
@@ -359,6 +364,22 @@ const MenuDescriptor debugGroup[] =
     { MENU_DEBUG, MENU_STOP, 0, NULL, NULL, UiMenuDesc("") }
 };
 
+const MenuDescriptor hall_of_fameGroup[] =
+{
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"M0NKA  (Chris) founder of mcHF", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"KA7OEI (Clint) 1st great work", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"DF8OE  (Andreas)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"DL4SAI (Harald)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"DB4PLE (Danilo)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"DD4WH  (Frank)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"DL2FW  (Michael)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"HB9OCQ (Stephan)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"       (Asbjorn)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"YL3AKE (Eriks)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_TEXT, 0, NULL,"PA7N   (Erwin)", UiMenuDesc("") },
+    { MENU_HALL_OF_FAME, MENU_STOP, 0, NULL, NULL, UiMenuDesc("") }
+};
+
 
 MenuGroupState topGroupState;
 MenuGroupState baseGroupState;
@@ -369,6 +390,7 @@ MenuGroupState infoGroupState;
 MenuGroupState cwGroupState;
 MenuGroupState displayGroupState;
 MenuGroupState debugGroupState;
+MenuGroupState hall_of_fameGroupState;
 
 
 const MenuGroupDescriptor groups[] =
@@ -382,4 +404,5 @@ const MenuGroupDescriptor groups[] =
     { cwGroup, &cwGroupState, topGroup },  // Group 7
     { displayGroup, &displayGroupState, topGroup },  // Group 8
     { debugGroup, &debugGroupState, topGroup },  // Group 9
+    { hall_of_fameGroup, &hall_of_fameGroupState, topGroup },  // Group 10
 };

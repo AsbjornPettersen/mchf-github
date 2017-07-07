@@ -87,7 +87,7 @@ typedef struct
 
 __IO mchf_codec_t mchf_codecs[DMA_AUDIO_NUM];
 
-#ifdef STM32F7
+#ifdef UI_BRD_OVI40
 /**
  * @brief controls volume on "external" PA via DAC
  * @param vol volume in range of 0 to 80, where 80 is max volume
@@ -95,7 +95,7 @@ __IO mchf_codec_t mchf_codecs[DMA_AUDIO_NUM];
 static void AudioPA_Volume(uint8_t vol)
 {
     uint32_t lv = vol>0x50?0x50:vol;
-    HAL_DAC_SetValue(&hdac,DAC_CHANNEL_1,DAC_ALIGN_12B_R,vol * (4095/0x50));
+    HAL_DAC_SetValue(&hdac,DAC_CHANNEL_1,DAC_ALIGN_12B_R, (lv * 4095)/0x50);
 }
 /**
  * @brief controls sound delivery on "external" PA via DAC
@@ -220,7 +220,7 @@ uint32_t Codec_Reset(uint32_t AudioFreq,uint32_t word_size)
     {
         mchf_codecs[0].present = true;
 
-#ifdef STM32F7
+#ifdef UI_BRD_OVI40
         AudioPA_Enable(true);
 #endif
 
@@ -392,7 +392,7 @@ void Codec_TxSidetoneSetgain(uint8_t txrx_mode)
     if(txrx_mode == TRX_MODE_TX)  		// bail out if not in transmit mode
     {
         float vcalc = 0;
-        if(ts.st_gain)	 	// calculate if the sidetone gain is non-zero
+        if(ts.cw_sidetone_gain)	 	// calculate if the sidetone gain is non-zero
         {
             vcalc = (float)ts.tx_power_factor;	// get TX scaling power factor
             vcalc *= vcalc;
@@ -400,7 +400,7 @@ void Codec_TxSidetoneSetgain(uint8_t txrx_mode)
             vcalc = log10f(vcalc);	// get the log
             vcalc *= 10;			// convert to deciBels and calibrate for the per-step value of the codec
 
-            float vcalc1 = 6.0 *((float)ts.st_gain-5);
+            float vcalc1 = 6.0 *((float)ts.cw_sidetone_gain-5);
             // get the sidetone gain (level) setting
             // offset by # of dB the desired sidetone gain
 

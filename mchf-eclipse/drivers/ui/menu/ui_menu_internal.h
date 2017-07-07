@@ -49,6 +49,7 @@ enum
     MENU_TX_COMPRESSION_LEVEL,
     MENU_KEYER_MODE,
     MENU_KEYER_SPEED,
+    MENU_KEYER_WEIGHT,
     MENU_SIDETONE_GAIN,
     MENU_SIDETONE_FREQUENCY,
     MENU_PADDLE_REVERSE,
@@ -104,6 +105,8 @@ enum
     CONFIG_TXRX_SWITCH_AUDIO_MUTE,
     CONFIG_LCD_AUTO_OFF_MODE,
     CONFIG_VOLTMETER_CALIBRATION,
+    MENU_LOW_POWER_SHUTDOWN,
+    CONFIG_LOW_POWER_THRESHOLD,
     CONFIG_DISP_FILTER_BANDWIDTH,
     CONFIG_MAX_VOLUME,
     CONFIG_MAX_RX_GAIN,
@@ -239,7 +242,8 @@ enum MENU_KIND
     MENU_GROUP, // menu group entry
     MENU_INFO, // just like a normal entry (read-only) but just for display purposes.
     MENU_SEP, // separator line
-    MENU_BLANK // blank
+    MENU_BLANK, // blank
+    MENU_TEXT,	// text output only
 };
 
 

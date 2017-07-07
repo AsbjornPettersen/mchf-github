@@ -314,11 +314,11 @@ typedef enum {
 
 //
 //
-#define CW_MODE_IAM_B				0
+#define CW_KEYER_MODE_IAM_B				0
 #define CW_MODE_IAM_A				1
 #define CW_MODE_STRAIGHT			2
 #define CW_MODE_ULTIMATE			3
-#define CW_MAX_MODE					3
+#define CW_KEYER_MAX_MODE					3
 
 // PA power level setting enumeration
 typedef enum
@@ -333,19 +333,9 @@ typedef enum
 //
 #define	PA_LEVEL_DEFAULT		PA_LEVEL_2W		// Default power level
 
-#define	US_DELAY			15  // 15 gives 1 uS delay in loop without optimization(O0)
-
-#define	CW_SIDETONE_FREQ_DEFAULT	750	// Default CW Audio Sidetone and TX offset frequency
-//
-#define	CW_SIDETONE_FREQ_MIN		400
-#define	CW_SIDETONE_FREQ_MAX		1000
-//
 #define	SSB_TUNE_FREQ			750	// Frequency at which the SSB TX IQ gain and phase adjustment is to be done
 //
 #define SSB_RX_DELAY			450	// Delay for switching when going from TX to RX (this is 0.66uS units)
-//
-#define	CW_RX_DELAY_MAX			50	// Maximum TX to RX turnaround setting
-#define	CW_RX_DELAY_DEFAULT		8
 //
 
 // Audio sources for TX modulation
@@ -439,6 +429,7 @@ enum
 //
 #define	BACKLIGHT_BLANK_TIMING_DEFAULT	8		// default number of SECONDS for backlight blanking
 #define LCD_STARTUP_BLANKING_TIME	3000		// number of DECISECONDS (e.g. SECONDS * 100) after power-up before LCD blanking occurs if no buttons are pressed/knobs turned
+#define LOW_POWER_SHUTDOWN_DELAY_TIME   6000        // number of DECISECONDS after power-up before low power auto shutdown is checked
 
 #define FILT_DISPLAY_WIDTH      256     // width, in pixels, of the spectral display on the screen - this value used to calculate Hz/pixel for indicating width of filter
 
@@ -527,7 +518,7 @@ typedef struct TransceiverState
 
     uchar	rf_codec_gain;		// gain for codec (A/D converter) in receive mode
     uchar 	nb_setting;
-    uchar	st_gain;
+    uchar	cw_sidetone_gain;
     uchar	pa_bias;
     uchar	pa_cw_bias;
 
@@ -629,11 +620,24 @@ typedef struct TransceiverState
     uchar	new_digi_mode;
 
     // Current CW mode
-    uchar	keyer_mode;
-    uchar	keyer_speed;
-    ulong	sidetone_freq;
-    uchar	paddle_reverse;
-    uchar	cw_rx_delay;
+    uint8_t	cw_keyer_mode;
+    uint8_t	cw_keyer_speed;
+    uint8_t	cw_paddle_reverse;
+
+    uint8_t cw_keyer_weight;   // cw dit/pause ratio 100 = 1.00 -> dit == pause == dah / 3
+#define CW_KEYER_WEIGHT_DEFAULT (100)
+#define CW_KEYER_WEIGHT_MAX     (150)
+#define CW_KEYER_WEIGHT_MIN      (50)
+
+    uint8_t cw_rx_delay; // break time
+#define CW_RX_DELAY_DEFAULT     8
+#define CW_RX_DELAY_MAX         50  // Maximum TX to RX turnaround setting
+
+    uint32_t cw_sidetone_freq;
+#define CW_SIDETONE_FREQ_DEFAULT    750 // Default CW Audio Sidetone and TX offset frequency in Hz
+#define CW_SIDETONE_FREQ_MIN        400
+#define CW_SIDETONE_FREQ_MAX        1000
+
     ulong	audio_spkr_unmute_delay_count;
 
     uchar	power_level;
@@ -713,6 +717,22 @@ typedef struct TransceiverState
 #define LCD_BLANKING_ENABLE 0x80
 #define LCD_BLANKING_TIMEMASK 0x0f
     uchar	lcd_backlight_blanking;		// for controlling backlight auto-off control
+
+
+
+#define LOW_POWER_ENABLE 0x80    // bit7 shows enable / no enable
+#define LOW_POWER_ENABLE_MASK 0x80
+
+#define LOW_POWER_THRESHOLD_OFFSET 30    // value stored in the configuration variable is lower by this offset
+#define LOW_POWER_THRESHOLD_MASK 0x7f
+#define LOW_POWER_THRESHOLD_DEFAULT  0
+#define LOW_POWER_THRESHOLD_MIN  0
+#define LOW_POWER_THRESHOLD_MAX  126
+
+
+
+    uchar   low_power_config;        // for voltage colours and auto shutdown
+    ulong   low_power_shutdown_time;    // earliest time when auto shutdown can be executed
     //
     uchar	tune_step;					// Used for press-and-hold tune step adjustment
     ulong	tune_step_idx_holder;		// used to hold the original step size index during the press-and-hold
@@ -744,10 +764,11 @@ typedef struct TransceiverState
 #define FLAGS1_TX_OUTSIDE_BANDS			0x2000  // 1 = TX outside bands enabled
 #define FLAGS1_REVERSE_TOUCHSCREEN		0x4000  // 1 = X direcction of touchscreen is mirrored
 
-#ifdef STM32F4
+#ifdef UI_BRD_MCHF
     // the default screen needs no reversed touch
 #define FLAGS1_CONFIG_DEFAULT (0x0000)
-#else
+#endif
+#ifdef UI_BRD_OVI40
     // the default screen needs reversed touch
 #define FLAGS1_CONFIG_DEFAULT (FLAGS1_REVERSE_TOUCHSCREEN)
 #endif
@@ -819,7 +840,7 @@ typedef struct TransceiverState
 #define SER_EEPROM_IN_USE_I2C         0x00
 #define SER_EEPROM_IN_USE_ERROR       0x05
 #define SER_EEPROM_IN_USE_TOO_SMALL   0x10
-#define SER_EEPROM_IN_USE_DONT_SAVE   0x20
+// #define SER_EEPROM_IN_USE_DONT_SAVE   0x20
 #define SER_EEPROM_IN_USE_RAMCACHE    0xAA
 #define SER_EEPROM_IN_USE_NO          0xFF
 
@@ -1029,7 +1050,7 @@ inline void MchfBoard_RedLed(ledstate_t state)
     }
 }
 
-#ifdef STM32F7
+#ifdef UI_BRD_OVI40
 inline void MchfBoard_BlueLed(ledstate_t state)
 {
     switch(state)
