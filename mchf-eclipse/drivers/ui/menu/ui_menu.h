@@ -15,7 +15,7 @@
 #ifndef __UI_MENU_H
 #define __UI_MENU_H
 
-#include "mchf_board.h"
+#include "uhsdr_board.h"
 //
 // Exports
 //
@@ -58,13 +58,14 @@ enum MENU_INFO_ITEM
     INFO_RTC,
     INFO_VBAT,
     INFO_LICENCE,
+    INFO_HWLICENCE,
     INFO_CODEC,
 };
 
 const char* UiMenu_GetSystemInfo(uint32_t* m_clr_ptr, int info_item);
 
 //
-#define	MENUSIZE	6				// number of menu items per page/screen
+#define	MENUSIZE							6		// number of menu items per page/screen
 
 //
 // Starting position of configuration menu
