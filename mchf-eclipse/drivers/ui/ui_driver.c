@@ -13,15 +13,16 @@
 ************************************************************************************/
 
 // Common
-#include "mchf_board.h"
+#include "uhsdr_board.h"
 #include "profiling.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <src/uhsdr_version.h>
+#include "hardware/uhsdr_board_config.h"
 #include "ui_menu.h"
-#include "mchf_rtc.h"
+#include "uhsdr_rtc.h"
 #include "adc.h"
 //
 //
@@ -30,7 +31,7 @@
 #include "ui_lcd_hy28.h"
 #include "ui_spectrum.h"
 
-#include "freedv_mchf.h"
+#include "freedv_uhsdr.h"
 
 // Encoders
 #include "ui_rotary.h"
@@ -138,103 +139,6 @@ static void UiDriver_KeyTestScreen();
 
 static bool UiDriver_SaveConfiguration();
 
-//
-// --------------------------------------------------------------------------
-// Controls positions and some related colours
-// --------------------
-
-// Frequency display control
-#define POS_TUNE_FREQ_X             116
-#define POS_TUNE_FREQ_Y             100
-//
-#define POS_TUNE_SPLIT_FREQ_X           POS_TUNE_FREQ_X+72
-#define POS_TUNE_SPLIT_MARKER_X         POS_TUNE_FREQ_X+40
-#define POS_TUNE_SPLIT_FREQ_Y_TX        POS_TUNE_FREQ_Y+12
-
-//
-#define SPLIT_ACTIVE_COLOUR         Yellow      // colour of "SPLIT" indicator when active
-#define SPLIT_INACTIVE_COLOUR           Grey        // colour of "SPLIT" indicator when NOT active
-
-// Second frequency display control
-#define POS_TUNE_SFREQ_X            (POS_TUNE_FREQ_X + 120)
-#define POS_TUNE_SFREQ_Y            (POS_TUNE_FREQ_Y - 20)
-
-// Band selection control
-#define POS_BAND_MODE_X             (POS_TUNE_FREQ_X + 160)
-#define POS_BAND_MODE_Y             (POS_TUNE_FREQ_Y + 7)
-#define POS_BAND_MODE_MASK_X            (POS_BAND_MODE_X - 1)
-#define POS_BAND_MODE_MASK_Y            (POS_BAND_MODE_Y - 1)
-#define POS_BAND_MODE_MASK_H            13
-#define POS_BAND_MODE_MASK_W            33
-
-// Demodulator mode control
-#define POS_DEMOD_MODE_X            (POS_TUNE_FREQ_X + 1)
-#define POS_DEMOD_MODE_Y            (POS_TUNE_FREQ_Y - 20)
-#define POS_DEMOD_MODE_MASK_X           (POS_DEMOD_MODE_X - 1)
-#define POS_DEMOD_MODE_MASK_Y           (POS_DEMOD_MODE_Y - 1)
-#define POS_DEMOD_MODE_MASK_H           13
-#define POS_DEMOD_MODE_MASK_W           41
-
-// Tunning step control
-#define POS_TUNE_STEP_X             (POS_TUNE_FREQ_X + 45)
-#define POS_TUNE_STEP_Y             (POS_TUNE_FREQ_Y - 21)
-#define POS_TUNE_STEP_MASK_H            15
-#define POS_TUNE_STEP_MASK_W            (SMALL_FONT_WIDTH*7)
-
-#define POS_RADIO_MODE_X            4
-#define POS_RADIO_MODE_Y            5
-
-// Bottom bar
-#define POS_BOTTOM_BAR_X            0
-#define POS_BOTTOM_BAR_Y            228
-#define POS_BOTTOM_BAR_BUTTON_W         62
-#define POS_BOTTOM_BAR_BUTTON_H         16
-
-// Virtual Button 1
-#define POS_BOTTOM_BAR_F1_X         (POS_BOTTOM_BAR_X + 2)
-#define POS_BOTTOM_BAR_F1_Y         POS_BOTTOM_BAR_Y
-
-
-
-// --------------------------------------------------
-// Encoder controls indicator
-#define POS_ENCODER_IND_X                0
-#define POS_ENCODER_IND_Y                16
-
-
-#define LEFTBOX_WIDTH 58 // used for the lower left side controls
-// --------------------------------------------------
-// Standalone controls
-//
-// DSP mode
-// Lower DSP box
-#define POS_LEFTBOXES_IND_X              0
-#define POS_LEFTBOXES_IND_Y              130
-
-// Power level
-#define POS_PW_IND_X                POS_DEMOD_MODE_X -1
-#define POS_PW_IND_Y                POS_DEMOD_MODE_Y - 16
-
-#define POS_DIGMODE_IND_X              0
-#define POS_DIGMODE_IND_Y              (163 + 16+12)
-
-// S meter position
-#define POS_SM_IND_X                116
-#define POS_SM_IND_Y                0
-
-// Supply Voltage indicator
-#define POS_PWRN_IND_X              0
-#define POS_PWRN_IND_Y              193
-
-#define POS_PWR_IND_X               4
-#define POS_PWR_IND_Y               (POS_PWRN_IND_Y + 15)
-#define COL_PWR_IND                 White
-
-// Temperature Indicator
-#define POS_TEMP_IND_X              0
-#define POS_TEMP_IND_Y              0
-//
-//
 // Tuning steps
 const ulong tune_steps[T_STEP_MAX_STEPS] =
 {
@@ -642,7 +546,7 @@ void UiDriver_HandleTouchScreen()
     {
         char text[10];
         snprintf(text,10,"%02d%s%02d%s",ts.tp->x," : ",ts.tp->y,"  ");
-        UiLcdHy28_PrintText(POS_PWR_NUM_IND_X,POS_PWR_NUM_IND_Y,text,White,Black,0);
+        UiLcdHy28_PrintText(0,POS_LOADANDDEBUG,text,White,Black,0);
     }
     if(!ts.menu_mode)						// normal operational screen
     {
@@ -806,7 +710,7 @@ void UiDriver_HandleTouchScreen()
         if(UiDriver_CheckTouchCoordinates(54,57,55,57))			// enable tp coordinates show S-meter "dB"
         {
             ts.show_tp_coordinates = !ts.show_tp_coordinates;
-            UiLcdHy28_PrintText(POS_PWR_NUM_IND_X,POS_PWR_NUM_IND_Y,ts.show_tp_coordinates?"enabled":"       ",Green,Black,0);
+            UiLcdHy28_PrintText(0,POS_LOADANDDEBUG,ts.show_tp_coordinates?"enabled":"       ",Green,Black,0);
         }
         if(UiDriver_CheckTouchCoordinates(46,49,55,57))  			// rf bands mod S-meter "40"
         {
@@ -880,8 +784,25 @@ void UiDriver_Init()
     // Load stored data from eeprom or calibrate touchscreen
     bool run_keytest = (UiDriver_LoadSavedConfigurationAtStartup() == false && UiDriver_TouchscreenCalibration() == false);
 
+    UiDriver_StartupScreen_LogIfProblem(AudioDriver_GetTranslateFreq() == 0,
+            "WARNING:  Freq. Translation is OFF!!!\nTranslation is STRONGLY recommended!!");
+
     // now run all inits which need to be done BEFORE going into test screen mode
-    UiLcdHy28_TouchscreenInit((ts.flags1 & FLAGS1_REVERSE_TOUCHSCREEN)?true:false);
+	uint8_t mirtemp;
+	if(ts.flags1 & FLAGS1_REVERSE_X_TOUCHSCREEN)
+	{
+	mirtemp = 1;
+	}
+	else
+	{
+	mirtemp = 0;
+	}
+	if(ts.flags1 & FLAGS1_REVERSE_Y_TOUCHSCREEN)
+	{
+	mirtemp += 2;
+	}
+
+    UiLcdHy28_TouchscreenInit(mirtemp);
 
     if (run_keytest)
     {
@@ -913,8 +834,6 @@ void UiDriver_Init()
     // Extra HW init
     mchf_board_post_init();
 
-    // Create desktop screen
-    UiDriver_CreateDesktop();
 
     UiDriver_LcdBlankingStartTimer();			// init timing for LCD blanking
     ts.lcd_blanking_time = ts.sysclock + LCD_STARTUP_BLANKING_TIME;
@@ -2036,7 +1955,7 @@ static void UiDriver_CreateMainFreqDisplay()
     UiDriver_FButton_F3MemSplit();
     if((is_splitmode()))	 	// are we in SPLIT mode?
     {
-        UiLcdHy28_PrintText(POS_TUNE_FREQ_X,POS_TUNE_FREQ_Y,"          ",White,Black,1);	// clear large frequency digits
+        UiLcdHy28_PrintText(POS_TUNE_FREQ_X-16,POS_TUNE_FREQ_Y,"          ",White,Black,1);	// clear large frequency digits
         UiDriver_DisplaySplitFreqLabels();
     }
     UiDriver_ShowStep(df.selected_idx);
@@ -3322,7 +3241,7 @@ static void UiDriver_TimeScheduler()
 
 
     // This delays the start-up of the DSP for several seconds to minimize the likelihood that the LMS function will get "jammed"
-    // and stop working.  It also does a delayed detection - and action - on the presence of a new version of firmware being installed.
+    // and stop working.
 
     /*** ONCE AFTER STARTUP DELAY ***/
     if( startup_done_flag == false && (ts.sysclock > DSP_STARTUP_DELAY))       // has it been long enough after startup?
@@ -3340,25 +3259,8 @@ static void UiDriver_TimeScheduler()
 
 
 
-        audio_spkr_volume_update_request = 1;                    // set unmute flag to force audio to be un-muted - just in case it starts up muted!
+        audio_spkr_volume_update_request = 1;      // set unmute flag to force audio to be un-muted - just in case it starts up muted!
         Codec_MuteDAC(false);                      // make sure that audio is un-muted
-
-
-        if((ts.version_number_major != atoi(TRX4M_VER_MAJOR)) || (ts.version_number_release != atoi(TRX4M_VER_RELEASE)) || (ts.version_number_minor != atoi(TRX4M_VER_MINOR)))        // Yes - check for new version
-        {
-
-            ts.version_number_major = atoi(TRX4M_VER_MAJOR);    // save new F/W version
-            ts.version_number_release = atoi(TRX4M_VER_RELEASE);
-            ts.version_number_minor = atoi(TRX4M_VER_MINOR);
-
-            UiSpectrum_ClearDisplay();         // clear display under spectrum scope
-            UiLcdHy28_PrintText(110,156,"- New F/W detected -",Cyan,Black,0);
-            UiLcdHy28_PrintText(110,168,"  Settings adjusted ",Cyan,Black,0);
-
-            non_os_delay_multi(6);
-            UiSpectrum_InitSpectrumDisplay();          // init spectrum scope
-        }
-
     }
 }
 
@@ -4985,17 +4887,16 @@ static bool UiDriver_SaveConfiguration()
     const char* txp;
     uint16_t txc;
 
-    switch (ts.ser_eeprom_in_use)
+    switch (ts.configstore_in_use)
     {
-    case SER_EEPROM_IN_USE_NO:
-    case SER_EEPROM_IN_USE_TOO_SMALL:
+    case CONFIGSTORE_IN_USE_FLASH:
         txp = "Saving settings to Flash Memory";
         break;
-    case SER_EEPROM_IN_USE_I2C:
+    case CONFIGSTORE_IN_USE_I2C:
         txp = "Saving settings to I2C EEPROM";
         break;
     default:
-        txp = "Detected I2C problems: Not saving";
+        txp = "Detected problems: Not saving";
         savedConfiguration = false;
     }
     UiLcdHy28_PrintTextCentered(60,176,260,txp,Blue,Black,0);
@@ -5894,77 +5795,143 @@ void UiDriver_DoCrossCheck(char cross[],char* xt_corr, char* yt_corr)
     non_os_delay_multi(10);
 }
 
+static uint16_t startUpScreen_nextLineY;
+static bool startUpError = false;
 
 /**
- * @brief show initial splash screen
+ * @brief use this method to report initialization problems on splash screen, may only be used during splash screen presence (!)
+ *
+ * @param isProblem if set to true, the problem is reported on screen, otherwise nothing is done
+ * @param txt pointer to a text string characterizing the problem detected
+ *
+ */
+void UiDriver_StartupScreen_LogIfProblem(bool isProblem, const char* txt)
+{
+    if (isProblem)
+    {
+        startUpScreen_nextLineY = UiLcdHy28_PrintTextCentered(0,startUpScreen_nextLineY,320,txt,Black,Red3,0);
+        startUpError = true;
+    }
+}
+
+static uint16_t fw_version_number_major = 0;    // save new F/W version
+static uint16_t fw_version_number_release = 0;
+static uint16_t fw_version_number_minor = 0;
+
+/**
+ * @returns true if the firmware version is different from version in loaded configuraton settings.
+ */
+static bool UiDriver_FirmwareVersionCheck()
+{
+
+    fw_version_number_major = atoi(UHSDR_VER_MAJOR);    // save new F/W version
+    fw_version_number_release = atoi(UHSDR_VER_RELEASE);
+    fw_version_number_minor = atoi(UHSDR_VER_MINOR);
+
+    return ((ts.version_number_major != fw_version_number_major) || (ts.version_number_release != fw_version_number_release) || (ts.version_number_minor != fw_version_number_minor));        // Yes - check for new version
+}
+/**
+ * @brief basically does nothing but settiSng the firmware number of configuration to number of running fw
+ */
+static void UiDriver_FirmwareVersionUpdateConfig()
+{
+
+    if (UiDriver_FirmwareVersionCheck())
+    {
+        ts.version_number_major = fw_version_number_major;    // save new F/W version
+        ts.version_number_release = fw_version_number_release;
+        ts.version_number_minor = fw_version_number_minor;
+
+    }
+}
+
+
+/**
+ * @brief show initial splash screen, we run AFTER the configuration storage has been initialized!
  * @param hold_time how long the screen to be shown before proceeding (in ms)
  */
-void UiDriver_ShowStartUpScreen(uint32_t hold_time)
+void UiDriver_StartUpScreenInit()
 {
-    uint16_t    i, error;
     char   tx[100];
-    const char* txp;
     uint32_t clr;
-
-	error = 0;
-
     // Clear all
     UiLcdHy28_LcdClear(Black);
+    uint16_t nextY = 10;
+    snprintf(tx,100,"%s",DEVICE_STRING);
+    nextY = UiLcdHy28_PrintTextCentered(0, nextY, 320, tx, Cyan, Black, 1);
 
-    non_os_delay();
+#ifdef TRX_HW_LIC
+    snprintf(tx,100,"Hardware License: %s",TRX_HW_LIC);
+    nextY = UiLcdHy28_PrintTextCentered(0, nextY + 3, 320, tx, White,Black, 0);
+#endif
+#ifdef TRX_HW_CREATOR
+    nextY = UiLcdHy28_PrintTextCentered(0, nextY, 320, TRX_HW_CREATOR, White,Black, 0);
+#endif
 
     snprintf(tx,100,"%s%s","UHSDR Vers. ",UiMenu_GetSystemInfo(&clr,INFO_FW_VERSION));
-    UiLcdHy28_PrintTextCentered(0,30,320,tx,Yellow,Black,1);
-    snprintf(tx,100,"%s","running on");
-    UiLcdHy28_PrintTextCentered(0,60,320,tx,White,Black,0);
-    snprintf(tx,100,"%s",DEVICE_STRING);
-    UiLcdHy28_PrintTextCentered(0,90,320,tx,Cyan,Black,1);
+    nextY = UiLcdHy28_PrintTextCentered(0, nextY + 8, 320, tx, Yellow, Black, 1);
+
+    nextY = UiLcdHy28_PrintTextCentered(0, nextY + 3, 320, "Firmware License: " UHSDR_LICENCE "\n" UHSDR_REPO, White, Black, 0);
 
 	// show important error status
-
-    ushort adc2, adc3;
-    adc2 = HAL_ADC_GetValue(&hadc2);
-    adc3 = HAL_ADC_GetValue(&hadc3);
-    ConfigStorage_ReadVariable(EEPROM_FREQ_CONV_MODE, &i);  		// get setting of frequency translation mode
-
-    if(!(i & 0xff))													// no translation used
-    {
-        txp = "WARNING:  Freq. Translation is OFF!!!";
-        UiLcdHy28_PrintTextCentered(0,120,320,txp,Black,Red3,0);
-        txp ="Translation is STRONGLY recommended!!";
-        UiLcdHy28_PrintTextCentered(0,135,320,txp,Black,Red3,0);
-        error = 1;
-    }
-    if(ts.ee_init_stat != HAL_OK)        							// problem with EEPROM init
-    {
-        snprintf(tx,100, "EEPROM Init Error Code:  %d", ts.ee_init_stat);
-        UiLcdHy28_PrintTextCentered(0,180,320,tx,Black,Red3,0);
-        error = 1;
-    }
-    if((adc2 > MAX_VSWR_MOD_VALUE) && (adc3 > MAX_VSWR_MOD_VALUE))	// SWR bridge mod not done
-    {
-        txp = "SWR Bridge resistor mod NOT completed!";
-        UiLcdHy28_PrintTextCentered(0,190,320,txp,Black,Red3,0);
-		error = 1;
-    }
-
-	if(error == 1)
-	{
-  		snprintf(tx,100, "Errors occured. Booting delayed for 15 seconds...");
-  		UiLcdHy28_PrintTextCentered(0,200,320,tx,Black,Red3,0);
-  		hold_time *= 4;
-	}
-	else
-	{
-  		snprintf(tx,100, "...starting up normally...");
-  		UiLcdHy28_PrintTextCentered(0,200,320,tx,Green,Black,0);
-	}
+    startUpScreen_nextLineY = nextY + 8; // reset y coord to first line of error messages
 
     UiLcdHy28_BacklightEnable(true);
 
-    // On screen delay - decrease if drivers init takes longer
-    HAL_Delay(hold_time);
 }
+
+void UiDriver_StartUpScreenFinish()
+{
+    const char* txp;
+    char   tx[100];
+    uint32_t clr, fg_clr;
+
+    uint32_t hold_time;
+
+    UiDriver_StartupScreen_LogIfProblem(Si570_IsPresent() == false, "Si570 Oscillator NOT Detected!");
+    UiDriver_StartupScreen_LogIfProblem(lo.sensor_present == false, "MCP9801 Temp Sensor NOT Detected!");
+
+    if(ts.ee_init_stat != HAL_OK)                                   // problem with EEPROM init
+    {
+        snprintf(tx,100, "EEPROM Init Error Code: %d", ts.ee_init_stat);
+        UiDriver_StartupScreen_LogIfProblem(true, tx);
+    }
+
+    UiDriver_StartupScreen_LogIfProblem((HAL_ADC_GetValue(&hadc2) > MAX_VSWR_MOD_VALUE) && (HAL_ADC_GetValue(&hadc3) > MAX_VSWR_MOD_VALUE),
+                "SWR Bridge resistor mod NOT completed!");
+
+    if (UiDriver_FirmwareVersionCheck())
+    {
+        hold_time = 10000; // 15s
+        txp = "Firmware change detected!\nPlease review settings!";
+        startUpScreen_nextLineY = UiLcdHy28_PrintTextCentered(0,startUpScreen_nextLineY + 10,320,txp,White,Black,0);
+
+        UiDriver_FirmwareVersionUpdateConfig();
+    }
+
+    if(startUpError == true)
+    {
+        hold_time = 15000; // 15s
+        txp = "Boot Delay because of Errors or Warnings";
+        clr = Red3;
+        fg_clr = Black;
+    }
+    else
+    {
+        hold_time = 3000; // 3s
+        txp = "...starting up normally...";
+        clr =  Black;
+        fg_clr = Green;
+    }
+
+    UiLcdHy28_PrintTextCentered(0,startUpScreen_nextLineY + 10,320,txp,fg_clr,clr,0);
+
+    HAL_Delay(hold_time);
+
+    UiDriver_CreateDesktop();
+    UiDriver_UpdateDisplayAfterParamChange();
+}
+
 
 typedef enum {
     SCTimer_ENCODER_KEYS =0, // 10ms
@@ -6123,8 +6090,11 @@ void UiDriver_MainHandler()
                 uint32_t load =  pe_ptr->duration / (pe_ptr->count * (1120));
                 profileTimedEventReset(ProfileAudioInterrupt);
                 char str[20];
-                snprintf(str,20,"L%3u%%",(unsigned int)load);
-                UiLcdHy28_PrintText(0,79,str,White,Black,0);
+              	snprintf(str,20,"L%3u%%",(unsigned int)load);
+				if(ts.show_tp_coordinates)
+				{
+              	  UiLcdHy28_PrintText(280,POS_LOADANDDEBUG,str,White,Black,5);
+              	}
 #endif
             }
             if (UiDriver_TimerExpireAndRewind(SCTimer_RTC,now,100))
@@ -6138,7 +6108,7 @@ void UiDriver_MainHandler()
 
                     char str[20];
                     snprintf(str,20,"%2u:%02u:%02u",sTime.Hours,sTime.Minutes,sTime.Seconds);
-                    UiLcdHy28_PrintText(6*8,79,str,White,Black,0);
+                    UiLcdHy28_PrintText(0,POS_RTC,str,White,Black,0);
                 }
             }
             break;
@@ -6191,7 +6161,7 @@ void UiDriver_MainHandler()
                         txt = "AGC";
                     }
                 }
-                UiLcdHy28_PrintTextCentered(POS_DEMOD_MODE_MASK_X - 41,POS_DEMOD_MODE_MASK_Y+16,POS_DEMOD_MODE_MASK_W-6,txt,AGC_color2,AGC_color,0);
+                UiLcdHy28_PrintTextCentered(POS_DEMOD_MODE_MASK_X - 41,POS_DEMOD_MODE_MASK_Y,POS_DEMOD_MODE_MASK_W-6,txt,AGC_color2,AGC_color,0);
             }
             break;
         default:

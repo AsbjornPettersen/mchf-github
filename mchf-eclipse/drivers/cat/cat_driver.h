@@ -15,7 +15,7 @@
 #ifndef __CAT_DRIVER_H
 #define __CAT_DRIVER_H
 
-#include "mchf_types.h"
+#include "uhsdr_types.h"
 
 typedef enum
 {
@@ -31,8 +31,6 @@ typedef enum
 
 
 // Exports
-void CatDriver_InitInterface(void);
-void CatDriver_StopInterface(void);
 
 CatInterfaceState CatDriver_GetInterfaceState();
 

@@ -13,23 +13,26 @@
  ************************************************************************************/
 
 // Common
-#include "mchf_board.h"
+#include "uhsdr_board.h"
 #include <stdio.h>
-#include "mchf_rtc.h"
+#include "uhsdr_rtc.h"
 #include "ui_spectrum.h"
 
 #include "ui_configuration.h"
 #include "config_storage.h"
 
 // serial EEPROM driver
-#include "mchf_hw_i2c.h"
+#include "uhsdr_hw_i2c.h"
 
 // Audio Driver
 #include "drivers/audio/audio_driver.h"
 #include "drivers/audio/audio_management.h"
 #include "drivers/audio/cw/cw_gen.h"
+#include "drivers/audio/freedv_uhsdr.h"
 
-#include "drivers/audio/freedv_mchf.h"
+//cat
+#include "drivers/cat/cat_driver.h"
+
 // UI Driver
 #include "drivers/ui/ui_driver.h"
 #include "drivers/ui/lcd/ui_lcd_hy28.h"
@@ -48,10 +51,6 @@
 //
 //
 //
-
-#include "cat_driver.h"
-
-
 
 #include "misc/TestCPlusPlusInterface.h"
 // ----------------------------------------------------
@@ -186,7 +185,7 @@ void TransceiverStateInit(void)
     ts.pa_bias			= DEFAULT_PA_BIAS;		// Use lowest possible voltage as default
     ts.pa_cw_bias		= DEFAULT_PA_BIAS;			// Use lowest possible voltage as default (nonzero sets separate bias for CW mode)
     ts.freq_cal			= 0;				// Initial setting for frequency calibration
-    ts.power_level		= PA_LEVEL_DEFAULT;			// See mchf_board.h for setting
+    ts.power_level		= PA_LEVEL_DEFAULT;			// See uhsdr_board.h for setting
     //
     //	ts.codec_vol		= 0;					// Holder for codec volume
     //	ts.codec_mute_state	= 0;					// Holder for codec mute state
@@ -225,7 +224,7 @@ void TransceiverStateInit(void)
     }
 
     ts.filter_cw_wide_disable		= 0;			// TRUE if wide filters are to be disabled in CW mode
-    ts.filter_ssb_narrow_disable	= 0;				// TRUE if narrow (CW) filters are to be disabled in SSB mdoe
+    ts.filter_ssb_narrow_disable	= 0;				// TRUE if narrow (CW) filters are to be disabled in SSB mode
     ts.demod_mode_disable			= 0;		// TRUE if AM mode is to be disabled
     //
     ts.tx_meter_mode	= METER_SWR;
@@ -304,7 +303,7 @@ void TransceiverStateInit(void)
     ts.beep_loudness = DEFAULT_BEEP_LOUDNESS;			// loudness of keyboard/CW sidetone test beep
     ts.load_freq_mode_defaults = 0;					// when TRUE, load frequency defaults into RAM when "UiDriverLoadEepromValues()" is called - MUST be saved by user IF these are to take effect!
     ts.ser_eeprom_type = 0;						// serial eeprom not present
-    ts.ser_eeprom_in_use = SER_EEPROM_IN_USE_NO;					// serial eeprom not in use
+    ts.configstore_in_use = CONFIGSTORE_IN_USE_FLASH;					// serial eeprom not in use
 
     ts.tp = &mchf_touchscreen;
     ts.display = &mchf_display;
@@ -443,9 +442,17 @@ int mchfMain(void)
 #endif
 
     // HW init
-    mchf_board_init();
-    MchfBoard_GreenLed(LED_STATE_ON);
+    mchf_board_init_minimal();
+    // Show logo & HW Info
+    UiDriver_StartUpScreenInit(2000);
 
+    if (ts.display != DISPLAY_NONE)
+    {
+        // TODO: Better indication of non-detected display
+        MchfBoard_GreenLed(LED_STATE_ON);
+    }
+
+    mchf_board_init_full();
 
     // MchfRtc_FullReset();
     ConfigStorage_Init();
@@ -453,12 +460,7 @@ int mchfMain(void)
     // init mchf_touchscreen to see if it is present
     // we don't care about the screen being reverse or not
     // here, so we simply set reverse to false
-    UiLcdHy28_TouchscreenInit(false);
-
-
-    // Show logo & HW Info
-    UiDriver_ShowStartUpScreen(2000);
-
+    UiLcdHy28_TouchscreenInit(0);
 
     // Extra init
     MiscInit();
@@ -494,6 +496,9 @@ int mchfMain(void)
     // Audio HW init
     AudioDriver_Init();
 
+    UiDriver_StartupScreen_LogIfProblem(ts.codec_present == false,
+            "Audiocodec WM8371 NOT detected!");
+
     AudioManagement_CalcSubaudibleGenFreq();		// load/set current FM subaudible tone settings for generation
     AudioManagement_CalcSubaudibleDetFreq();		// load/set current FM subaudible tone settings	for detection
     AudioManagement_LoadToneBurstMode();	// load/set tone burst frequency
@@ -501,7 +506,6 @@ int mchfMain(void)
 
     AudioFilter_SetDefaultMemories();
 
-    UiDriver_UpdateDisplayAfterParamChange();
 
     ts.rx_gain[RX_AUDIO_SPKR].value_old = 0;		// Force update of volume control
 
@@ -509,6 +513,7 @@ int mchfMain(void)
     FreeDV_mcHF_init();
 #endif
 
+    UiDriver_StartUpScreenFinish(2000);
     MchfBoard_RedLed(LED_STATE_OFF);
     // Transceiver main loop
     for(;;)

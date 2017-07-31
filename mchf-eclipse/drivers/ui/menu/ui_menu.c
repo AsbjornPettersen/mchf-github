@@ -15,7 +15,7 @@
 // Common
 //
 #include <src/uhsdr_version.h>
-#include "mchf_board.h"
+#include "uhsdr_board.h"
 #include "ui_menu.h"
 #include "ui_menu_internal.h"
 #include "ui_configuration.h"
@@ -78,8 +78,8 @@ void float2fixedstr(char* buf, int maxchar, float32_t f, uint16_t digitsBefore, 
 // LCD
 #include "ui_lcd_hy28.h" // for colors!
 
-#include "mchf_hw_i2c.h"
-#include "mchf_rtc.h"
+#include "uhsdr_hw_i2c.h"
+#include "uhsdr_rtc.h"
 
 // Codec control
 #include "codec.h"
@@ -515,32 +515,34 @@ const char* UiMenu_GetSystemInfo(uint32_t* m_clr_ptr, int info_item)
     case INFO_EEPROM:
     {
         const char* label = "";
-        switch(ts.ser_eeprom_in_use)
+        switch(ts.configstore_in_use)
          {
-         case SER_EEPROM_IN_USE_I2C:
+         case CONFIGSTORE_IN_USE_I2C:
              label = " [used]";
              *m_clr_ptr = Green;
              break; // in use & ok
-         case SER_EEPROM_IN_USE_ERROR: // not ok
+         case CONFIGSTORE_IN_USE_ERROR: // not ok
              label = " [error]";
              *m_clr_ptr = Red;
              break;
-         case SER_EEPROM_IN_USE_TOO_SMALL: // too small
-             label = " [too small]";
-             *m_clr_ptr = Red;
-			 break;
 		 default:
-             label = " [not used]";
+            label = " [not used]";
+            if (ts.ser_eeprom_type >= SERIAL_EEPROM_DESC_REAL &&
+                    SerialEEPROM_eepromTypeDescs[ts.ser_eeprom_type].size < SERIAL_EEPROM_MIN_USEABLE_SIZE)
+            {
+                label = " [too small]";
+            }
+
              *m_clr_ptr = Red;
          }
 
         const char* i2c_size_unit = "K";
         uint i2c_size = 0;
 
-		if(ts.ser_eeprom_type >= 0 && ts.ser_eeprom_type < 20)
-		  {
-      	  i2c_size = SerialEEPROM_eepromTypeDescs[ts.ser_eeprom_type].size / 1024;
-		  }
+        if(ts.ser_eeprom_type >= 0 && ts.ser_eeprom_type < SERIAL_EEPROM_DESC_NUM)
+        {
+            i2c_size = SerialEEPROM_eepromTypeDescs[ts.ser_eeprom_type].size / 1024;
+        }
 
         // in case we have no or very small eeprom (less than 1K)
         if (i2c_size == 0)
@@ -586,12 +588,16 @@ const char* UiMenu_GetSystemInfo(uint32_t* m_clr_ptr, int info_item)
     break;
     case INFO_FW_VERSION:
     {
-        snprintf(out,32, "%s", TRX4M_VERSION+4);
+  		#ifdef OFFICIAL_BUILD
+      	  snprintf(out,32, "D%s", UHSDR_VERSION+4);
+		#else
+    	  snprintf(out,32, "%s", UHSDR_VERSION+4);
+    	#endif
     }
     break;
     case INFO_BUILD:
     {
-        snprintf(out,32, "%s", TRX4M_BUILD_DAT+4);
+        snprintf(out,32, "%s", UHSDR_BUILD_DAT+4);
     }
     break;
     case INFO_RTC:
@@ -611,9 +617,17 @@ const char* UiMenu_GetSystemInfo(uint32_t* m_clr_ptr, int info_item)
     break;
     case INFO_LICENCE:
     {
-        snprintf(out,32, "%s", TRX4M_LICENCE);
+        snprintf(out,32, "%s", UHSDR_LICENCE);
     }
     break;
+
+#ifdef TRX_HW_LIC
+    case INFO_HWLICENCE:
+    {
+        snprintf(out,32, "%s", TRX_HW_LIC);
+    }
+    break;
+#endif
     default:
         outs = "NO INFO";
     }
@@ -1470,12 +1484,6 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                 UiDriver_RefreshEncoderDisplay(); // maybe shown on encoder boxes
             }
         }
-
-        if((!(ts.flags1 & FLAGS1_CAT_MODE_ACTIVE)) && (ts.tx_audio_source == TX_AUDIO_DIG || ts.tx_audio_source == TX_AUDIO_DIGIQ) )
-        {
-            // RED if CAT is not enabled and  digital input is selected
-            clr = Red;
-        }
         break;
     case MENU_MIC_GAIN: // Mic Gain setting
 
@@ -2161,23 +2169,91 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                              );
         UiMenu_MapColors(ts.meter_colour_down,options,&clr);
         break;
-    case MENU_REVERSE_TOUCHSCREEN:  // Touchscreen x mirrored?
-        temp_var_u8 = (ts.flags1 & FLAGS1_REVERSE_TOUCHSCREEN)? 1 : 0;
-        var_change = UiDriverMenuItemChangeEnableOnOff(var, mode, &temp_var_u8,0,options,&clr);
-        if(var_change)
+    case CONFIG_TOUCHSCREEN_MIRROR:  // Touchscreen mirror
+        if(ts.flags1 & FLAGS1_REVERSE_X_TOUCHSCREEN)
+      	{
+      	  temp_var_u8 = 1;
+      	}
+      	else
+      	{
+      	  temp_var_u8 = 0;
+      	}
+        if(ts.flags1 & FLAGS1_REVERSE_Y_TOUCHSCREEN)
         {
-            if (temp_var_u8)
-            {
-                ts.flags1 |= FLAGS1_REVERSE_TOUCHSCREEN;
-                ts.tp->reversed = true;
-            }
-            else
-            {
-                ts.flags1 &= ~FLAGS1_REVERSE_TOUCHSCREEN;
-                ts.tp->reversed = false;
-            }
+        temp_var_u8 += 2;
         }
-        break;
+        if(ts.flags2 & FLAGS2_TOUCHSCREEN_FLIP_XY)
+        {
+        temp_var_u8 += 4;
+        }
+
+        var_change = UiDriverMenuItemChangeUInt8(var, mode, &temp_var_u8,
+      							  TOUCHSCREEN_NO_MIRROR_NOFLIP,
+      							  TOUCHSCREEN_XY_MIRROR_FLIPXY,
+      							  TOUCHSCREEN_DF_MIRROR,
+      							  1
+      							  );
+
+		switch(temp_var_u8)
+		{
+            case TOUCHSCREEN_NO_MIRROR_NOFLIP:
+          		txt_ptr = "       Standard";
+                ts.flags1 &= ~FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 &= ~FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 &= ~FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 0;
+                break;
+            case TOUCHSCREEN_X_MIRROR_NOFLIP:
+          		txt_ptr = "         X mirr";
+                ts.flags1 |= FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 &= ~FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 &= ~FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 1;
+                break;
+            case TOUCHSCREEN_Y_MIRROR_NOFLIP:
+          		txt_ptr = "         Y mirr";
+                ts.flags1 &= ~FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 |= FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 &= ~FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 2;
+                break;
+            case TOUCHSCREEN_XY_MIRROR_NOFLIP:
+          		txt_ptr = "       X&Y mirr";
+                ts.flags1 |= FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 |= FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 &= ~FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 3;
+                break;
+            case TOUCHSCREEN_NO_MIRROR_FLIPXY:
+          		txt_ptr = "      only flip";
+                ts.flags1 &= ~FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 &= ~FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 |= FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 4;
+                break;
+            case TOUCHSCREEN_X_MIRROR_FLIPXY:
+          		txt_ptr = "  X mirr / flip";
+                ts.flags1 |= FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 &= ~FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 |= FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 5;
+                break;
+            case TOUCHSCREEN_Y_MIRROR_FLIPXY:
+          		txt_ptr = "  Y mirr / flip";
+                ts.flags1 &= ~FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 |= FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 |= FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 6;
+                break;
+            case TOUCHSCREEN_XY_MIRROR_FLIPXY:
+          		txt_ptr = "X&Y mirr / flip";
+                ts.flags1 |= FLAGS1_REVERSE_X_TOUCHSCREEN;
+                ts.flags1 |= FLAGS1_REVERSE_Y_TOUCHSCREEN;
+				ts.flags2 |= FLAGS2_TOUCHSCREEN_FLIP_XY;
+                ts.tp->mirrored = 7;
+                break;
+		}
+    	break;
     case MENU_WFALL_STEP_SIZE:  // set step size of of waterfall display?
         UiDriverMenuItemChangeUInt8(var, mode, &ts.waterfall.vert_step_size,
                                     WATERFALL_STEP_SIZE_MIN,
@@ -2269,7 +2345,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         break;
     case MENU_BACKUP_CONFIG:
         txt_ptr = "n/a";
-        if(ts.ser_eeprom_in_use == SER_EEPROM_IN_USE_I2C)
+        if(ts.configstore_in_use == CONFIGSTORE_IN_USE_I2C)
         {
             txt_ptr = " Do it!";
             clr = White;
@@ -2284,7 +2360,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         break;
     case MENU_RESTORE_CONFIG:
         txt_ptr = "n/a";
-        if(ts.ser_eeprom_in_use == SER_EEPROM_IN_USE_I2C)
+        if(ts.configstore_in_use == CONFIGSTORE_IN_USE_I2C)
         {
             txt_ptr = "Do it!";
             clr = White;
@@ -2330,6 +2406,29 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                 ts.freq_step_config |= 0xf0;    // set upper nybble
             else            // line disabled?
                 ts.freq_step_config &= 0x0f;    // clear upper nybble
+        }
+        break;
+    case MENU_DYNAMICTUNE:  // Dynamic Tune on/off
+        if(ts.flags1 & FLAGS1_DYN_TUNE_ENABLE)
+        {
+      	  temp_var_u8 = true;
+      	}
+      	else
+      	{
+      	  temp_var_u8 = false;
+      	}
+        var_change = UiDriverMenuItemChangeEnableOnOff(var, mode, &temp_var_u8,0,options,&clr);
+        if(var_change)
+        {
+		  if(!temp_var_u8)
+		  {
+		  ts.flags1 &= ~FLAGS1_DYN_TUNE_ENABLE;
+		  }
+		  else
+		  {
+		  ts.flags1 |= FLAGS1_DYN_TUNE_ENABLE;
+		  }
+		UiDriver_ShowStep(df.selected_idx);
         }
         break;
     case CONFIG_BAND_BUTTON_SWAP:   // Swap position of Band+ and Band- buttons
@@ -2569,31 +2668,6 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
             AudioManagement_KeyBeep();      // make beep to demonstrate loudness
         }
         snprintf(options,32, "    %u", ts.beep_loudness);
-        break;
-    //
-    //
-    // *****************  WARNING *********************
-    // If you change CAT mode, THINGS MAY GET "BROKEN" - for example, you may not be able to reliably save to EEPROM!
-    // This needs to be investigated!
-    //
-    case CONFIG_CAT_ENABLE:
-        temp_var_u8 = (ts.flags1 & FLAGS1_CAT_MODE_ACTIVE)? 1 : 0;
-        var_change = UiDriverMenuItemChangeEnableOnOff(var, mode, &temp_var_u8,0,options,&clr);
-        if (temp_var_u8)
-            ts.flags1 |= FLAGS1_CAT_MODE_ACTIVE;
-        else
-            ts.flags1 &= ~FLAGS1_CAT_MODE_ACTIVE;
-        if (var_change)
-        {
-            if(ts.flags1 & FLAGS1_CAT_MODE_ACTIVE)
-            {
-                CatDriver_InitInterface();
-            }
-            else
-            {
-                CatDriver_StopInterface();
-            }
-        }
         break;
     case CONFIG_FREQUENCY_CALIBRATE:        // Frequency Calibration
         if(var >= 1)        // setting increase?
@@ -3325,7 +3399,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         }
         break;
     case CONFIG_RESET_SER_EEPROM:
-        if(SerialEEPROM_Exists() == false)
+        if(SerialEEPROM_24xx_Exists() == false)
         {
             txt_ptr = "   n/a";
             clr = Red;
@@ -3338,7 +3412,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
             {
                 // clear EEPROM
                 UiMenu_DisplayValue("Working",Red,pos);
-                SerialEEPROM_Clear();
+                SerialEEPROM_Clear_Signature();
                 Si570_ResetConfiguration();     // restore SI570 to factory default
                 *(__IO uint32_t*)(SRAM2_BASE) = 0x55;
                 NVIC_SystemReset();         // restart mcHF
@@ -3420,7 +3494,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         }
         break;
 
-    case MENU_DEBUG_I2C1_SPEED:      //
+    case CONFIG_I2C1_SPEED:      //
         var_change = UiDriverMenuItemChangeUInt32(var, mode, &ts.i2c_speed[I2C_BUS_1],
                 1,
                 20,
@@ -3432,8 +3506,20 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
             mchf_hw_i2c1_init();
         }
         snprintf(options, 32, " %3dkHz",(unsigned int)(ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 );
+		if((ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 < 50 || (ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 > 250)
+		{
+		  clr = Red;
+		}
+		if(((ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 > 50 && (ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 < 90) || ((ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 > 210 && (ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 < 250))
+		{
+		  clr = Yellow;
+		}
+		if((ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 > 90 && (ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 < 210)
+		{
+		  clr = Green;
+		}
         break;
-    case MENU_DEBUG_I2C2_SPEED:      //
+    case CONFIG_I2C2_SPEED:      //
         var_change = UiDriverMenuItemChangeUInt32(var, mode, &ts.i2c_speed[I2C_BUS_2],
                 1,
                 20,
@@ -3445,6 +3531,18 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
             mchf_hw_i2c2_init();
         }
         snprintf(options, 32, " %3ukHz",(unsigned int)(ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 );
+		if((ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 < 50 || (ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 > 250)
+		{
+		  clr = Red;
+		}
+		if(((ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 > 50 && (ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 < 90) || ((ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 > 210 && (ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 < 250))
+		{
+		  clr = Yellow;
+		}
+		if((ts.i2c_speed[I2C_BUS_2]*I2C_BUS_SPEED_MULT) / 1000 > 90 && (ts.i2c_speed[I2C_BUS_1]*I2C_BUS_SPEED_MULT) / 1000 < 210)
+		{
+		  clr = Green;
+		}
         break;
 
     case CONFIG_RTC_HOUR:
@@ -3542,6 +3640,30 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
 
             txt_ptr = " Done!";
             clr = Green;
+        }
+        break;
+    case MENU_DEBUG_ENABLE:  // Debug infos on LCD on/off
+        if(ts.show_tp_coordinates)
+        {
+      	  temp_var_u8 = true;
+      	}
+      	else
+      	{
+      	  temp_var_u8 = false;
+      	}
+        var_change = UiDriverMenuItemChangeEnableOnOff(var, mode, &temp_var_u8,0,options,&clr);
+        if(var_change)
+        {
+		  if(temp_var_u8)
+		  {
+		  ts.show_tp_coordinates = true;
+		  }
+		  else
+		  {
+		  ts.show_tp_coordinates = false;
+		  UiLcdHy28_PrintText(0,POS_LOADANDDEBUG,"       ",White,Black,0); // clears debug text
+		  UiLcdHy28_PrintText(280,POS_LOADANDDEBUG,"     ",White,Black,5); //  "    "    "     "
+		  }
         }
         break;
 #ifdef USE_USB
