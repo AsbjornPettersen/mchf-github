@@ -134,10 +134,10 @@ struct mchf_waterfall
 {
     uint8_t	color_scheme;			// stores waterfall color scheme
     uint8_t	vert_step_size;		// vertical step size in waterfall mode
-    int32_t	offset;			// offset for waterfall display
+    // int32_t	offset;			// offset for waterfall display
     ulong	contrast;			// contrast setting for waterfall display
 	uint8_t	speed;	// speed of update of the waterfall
-	uint8_t	nosig_adjust;			// Adjustment for no signal adjustment conditions for waterfall
+	// uint8_t	nosig_adjust;			// Adjustment for no signal adjustment conditions for waterfall
 };
 
 // -----------------------------------------------------------------------------
@@ -431,8 +431,6 @@ enum
 #define LCD_STARTUP_BLANKING_TIME	3000		// number of DECISECONDS (e.g. SECONDS * 100) after power-up before LCD blanking occurs if no buttons are pressed/knobs turned
 #define LOW_POWER_SHUTDOWN_DELAY_TIME   6000        // number of DECISECONDS after power-up before low power auto shutdown is checked
 
-#define FILT_DISPLAY_WIDTH      256     // width, in pixels, of the spectral display on the screen - this value used to calculate Hz/pixel for indicating width of filter
-
 
 
 // Enumeration of transmit tune  modes
@@ -662,9 +660,7 @@ typedef struct TransceiverState
 
     uint8_t	scope_trace_colour;	// color of spectrum scope trace;
     uint8_t	scope_grid_colour;	// saved color of spectrum scope grid;
-    ulong	scope_grid_colour_active;	// active color of spectrum scope grid;
     uint8_t	spectrum_centre_line_colour;	// color of center line of scope grid
-    ulong	scope_centre_grid_colour_active;	// active colour of the spectrum scope center grid line
     uint8_t	spectrum_freqscale_colour;	// color of spectrum scope frequency scale
     uint8_t	scope_rescale_rate;	// rescale rate on the 'scope
     uint8_t	scope_agc_rate;		// agc rate on the 'scope
@@ -867,7 +863,6 @@ typedef struct TransceiverState
     int		tx_bass_gain;			// gain of the TX low shelf EQ filter
     int		tx_treble_gain;			// gain of the TX high shelf EQ filter
 
-    bool	AM_experiment;			// for AM demodulation experiments, not for "public" use
 //    bool	dBm_Hz_Test;			// for testing only
 //    ulong	dBm_count;				// timer for calculating RX dBm
     uint8_t 	display_dbm;			// display dbm or dbm/Hz or OFF
@@ -907,7 +902,6 @@ typedef struct TransceiverState
     uint32_t audio_int_counter;		// used for encoder timing - test DL2FW
     bool encoder3state;
     int bc_band;
-    uint8_t c_line;					// position of center line
 
     Si570_ResultCodes last_lo_result;			// used in dynamic tuning to hold frequency color
 

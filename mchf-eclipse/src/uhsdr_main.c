@@ -49,7 +49,7 @@
 // Eeprom
 #include "misc/v_eprom/eeprom.h"
 //
-//
+#include "drivers/ui/radio_management.h"
 //
 
 #include "misc/TestCPlusPlusInterface.h"
@@ -200,9 +200,7 @@ void TransceiverStateInit(void)
     ts.spectrum_filter		= SPECTRUM_FILTER_DEFAULT;	// default filter strength for spectrum scope
     ts.scope_trace_colour	= SPEC_COLOUR_TRACE_DEFAULT;		// default colour for the spectrum scope trace
     ts.scope_grid_colour	= SPEC_COLOUR_GRID_DEFAULT;		// default colour for the spectrum scope grid
-    ts.scope_grid_colour_active = Grid;
     ts.spectrum_centre_line_colour = SPEC_COLOUR_GRID_DEFAULT;		// color of center line of scope grid
-    ts.scope_centre_grid_colour_active = Grid;
     ts.spectrum_freqscale_colour	= SPEC_COLOUR_SCALE_DEFAULT;		// default colour for the spectrum scope frequency scale at the bottom
     ts.scope_agc_rate	= SPECTRUM_SCOPE_AGC_DEFAULT;		// load default spectrum scope AGC rate
     ts.spectrum_db_scale = DB_DIV_10;				// default to 10dB/division
@@ -263,9 +261,9 @@ void TransceiverStateInit(void)
     ts.version_number_release	= 0;			// version release - used to detect firmware change
     ts.version_number_major = 0;				// version build - used to detect firmware change
     ts.nb_agc_time_const	= 0;				// used to calculate the AGC time constant
-    ts.cw_offset_mode	= 0;					// CW offset mode (USB, LSB, etc.)
-    ts.cw_lsb			= 0;					// Flag that indicates CW operates in LSB mode when TRUE
-    ts.iq_freq_mode		= 0;					// used to set/configure the I/Q frequency/conversion mode
+    ts.cw_offset_mode	= CW_OFFSET_USB_RX;		// CW offset mode (USB, LSB, etc.)
+    ts.cw_lsb			= false;				// Flag that indicates CW operates in LSB mode when TRUE
+    ts.iq_freq_mode		= FREQ_IQ_CONV_MODE_DEFAULT;					// used to set/configure the I/Q frequency/conversion mode
     ts.conv_sine_flag	= 0;					// FALSE until the sine tables for the frequency conversion have been built (normally zero, force 0 to rebuild)
     ts.lsb_usb_auto_select	= 0;				// holds setting of LSB/USB auto-select above/below 10 MHz
     ts.last_tuning		= 0;					// this is a timer used to hold off updates of the spectrum scope when an SPI LCD display interface is used
@@ -276,11 +274,15 @@ void TransceiverStateInit(void)
     ts.voltmeter_calibrate	= POWER_VOLTMETER_CALIBRATE_DEFAULT;	// Voltmeter calibration constant
     ts.waterfall.color_scheme = WATERFALL_COLOR_DEFAULT;		// color scheme for waterfall display
     ts.waterfall.vert_step_size = WATERFALL_STEP_SIZE_DEFAULT;	// step size in waterfall display
+#if 0
     ts.waterfall.offset = WATERFALL_OFFSET_DEFAULT;			// Offset for waterfall display (brightness)
+#endif
     ts.waterfall.contrast = WATERFALL_CONTRAST_DEFAULT;		// contrast setting for waterfall display
     ts.spectrum_scheduler = 0;				// timer for scheduling the next update of the spectrum update
     ts.spectrum_scope_nosig_adjust = SPECTRUM_SCOPE_NOSIG_ADJUST_DEFAULT;	// Adjustment for no signal adjustment conditions for spectrum scope
+#if 0
     ts.waterfall.nosig_adjust = WATERFALL_NOSIG_ADJUST_DEFAULT;	// Adjustment for no signal adjustment conditions for waterfall
+#endif
     ts.spectrum_size	= SPECTRUM_SIZE_DEFAULT;		// adjustment for waterfall size
     ts.fft_window_type = FFT_WINDOW_DEFAULT;			// FFT Windowing type
     ts.dvmode = 0;							// disable "DV" mode RX/TX functions by default
@@ -322,7 +324,6 @@ void TransceiverStateInit(void)
     ts.treble_gain = 0;						// gain of the high shelf EQ filter
     ts.tx_bass_gain = 4;					// gain of the TX low shelf EQ filter
     ts.tx_treble_gain = 4;					// gain of the TX high shelf EQ filter
-    ts.AM_experiment = 1;					// for AM demodulation experiments, not for "public" use
     ts.s_meter = 0;							// S-Meter configuration, 0 = old school, 1 = dBm-based, 2=dBm/Hz-based
     ts.display_dbm = 0;						// style of dBm display, 0=OFF, 1= dbm, 2= dbm/Hz
 //    ts.dBm_count = 0;						// timer start
