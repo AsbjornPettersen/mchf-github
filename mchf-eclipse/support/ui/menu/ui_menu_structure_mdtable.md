@@ -2,7 +2,7 @@
 [//]: # (                                                                              )
 [//]: # ( WARNING: generated data!  DO NOT EDIT MANUALLY ! ! !                         )
 [//]: # (                                                                              )
-[//]: # ( generated at  2017-08-01T10:11:59  by "./ui_menu_structure_mdtable.py" )
+[//]: # ( generated at  2017-08-08T10:00:06  by "./ui_menu_structure_mdtable.py" )
 [//]: # (                                                                              )
 [//]: # ( mcHF SDR TRX v.. - Menu Structure Diagram as MarkDown-Table )
 [//]: # (                                                                              )
@@ -11,7 +11,7 @@
 
 # uhsdr firmware v.. - UI Menu Overview
 
-generated at  2017-08-01T10:11:59  by "./ui_menu_structure_mdtable.py"
+generated at  2017-08-08T10:00:06  by "./ui_menu_structure_mdtable.py"
 
 
 
@@ -131,7 +131,7 @@ generated at  2017-08-01T10:11:59  by "./ui_menu_structure_mdtable.py"
 | **Spectrum Size**             (                         MENU_SPECTRUM_SIZE) | Change height of spectrum display              | 
 | **Spectrum Filter**           (              MENU_SPECTRUM_FILTER_STRENGTH) | Lowpass filter for the spectrum FFT. Low values: fast and nervous spectrum; High values: slow and calm spectrum. | 
 | **Spec FreqScale Colour**     (             MENU_SPECTRUM_FREQSCALE_COLOUR) | Colour of the small frequency digits under the spectrum display. | 
-| **Spec Line Colour**          (           MENU_SPECTRUM_CENTER_LINE_COLOUR) | Colour of the vertical line indicating the Receive frequency in the spectrum or waterdall display. | 
+| **TX Carrier Colour**         (           MENU_SPECTRUM_CENTER_LINE_COLOUR) | Colour of the vertical line indicating the TX carrier frequency in the spectrum or waterdall display. | 
 | **Spectrum FFT Wind.**        (            CONFIG_SPECTRUM_FFT_WINDOW_TYPE) | Selects the window algorithm for the spectrum FFT. For low spectral leakage, Hann, Hamming or Blackman window is recommended. | 
 | **Scope Light**               (                    MENU_SCOPE_LIGHT_ENABLE) | The scope uses bars (NORMAL) or points (LIGHT) to represent data. LIGHT is a little less resource intensive. | 
 | **Scope 1/Speed**             (                           MENU_SCOPE_SPEED) | Lower Values: Higher refresh rate              | 
@@ -143,9 +143,7 @@ generated at  2017-08-01T10:11:59  by "./ui_menu_structure_mdtable.py"
 | **Wfall 1/Speed**             (                           MENU_WFALL_SPEED) | Lower Values: Higher refresh rate.             | 
 | **Wfall Colours**             (                    MENU_WFALL_COLOR_SCHEME) | Select colour scheme for waterfall display.    | 
 | **Wfall Step Size**           (                       MENU_WFALL_STEP_SIZE) | How many lines are moved in a single screen update | 
-| **Wfall Brightness**          (                          MENU_WFALL_OFFSET) | Set to input level which waterfall uses for lowest level | 
 | **Wfall Contrast**            (                        MENU_WFALL_CONTRAST) | Adjust to fit your personal input level range to displayable colour range for waterfall | 
-| **Wfall NoSig Adj.**          (                    MENU_WFALL_NOSIG_ADJUST) | Set NO SIGNAL state for waterfall              | 
 | **Upper Meter Colour**        (                       MENU_METER_COLOUR_UP) | Set the colour of the scale of combined S/Power-Meter | 
 | **Lower Meter Colour**        (                     MENU_METER_COLOUR_DOWN) | Set the colour of the scale of combined SWR/AUD/ALC-Meter | 
 | **dBm display**               (                           MENU_DBM_DISPLAY) | RX signal power (measured within the filter bandwidth) can be displayed in dBm or normalized as dBm/Hz. This value is supposed to be quite accurate to +-3dB. Preferably use low spectrum display magnify settings. Accuracy is lower for very very weak and very very strong signals. | 

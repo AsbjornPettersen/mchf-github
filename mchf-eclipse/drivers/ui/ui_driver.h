@@ -126,7 +126,8 @@ enum
     DB_DIV_20,
     S_1_DIV,
     S_2_DIV,
-    S_3_DIV
+    S_3_DIV,
+    SCOPE_SCALE_NUM
 };
 //
 #define	DB_DIV_ADJUST_MIN					DB_DIV_DEFAULT
@@ -382,9 +383,9 @@ void    UiDriver_FrequencyUpdateLOandDisplay(bool full_update);
 void    UiDriver_RefreshEncoderDisplay();
 void    UiDriver_FButtonLabel(uint8_t button_num, const char* label, uint32_t label_color) ;
 void 	UiDriver_ShowStep();
-void 	UiDriver_DisplayFilterBW(void);
 void 	UiDriver_ShowMode(void);
 void	UiDriver_LcdBlankingStartTimer(void);
+void    UiDriver_SpectrumZoomChangeLevel();
 
 void	UiDriver_ShowDebugText(const char*);
 void UiDriver_DebugInfo_DisplayEnable(bool enable);

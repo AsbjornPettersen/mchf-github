@@ -393,7 +393,7 @@ static void UiDriver_ToggleWaterfallScopeDisplay()
         // waterfall mode was turned off
         ts.flags1 |=  FLAGS1_WFALL_SCOPE_TOGGLE;          // turn it on
     }
-    UiSpectrum_InitSpectrumDisplay();   // init spectrum display
+    UiSpectrum_Init();   // init spectrum display
 }
 //
 //
@@ -557,6 +557,18 @@ void UiDriver_DebugInfo_DisplayEnable(bool enable)
     }
 }
 
+void UiDriver_SpectrumZoomChangeLevel()
+{
+    UiSpectrum_WaterfallClearData();
+    AudioDriver_SetRxAudioProcessing(ts.dmod_mode, false);
+
+
+    if (ts.menu_mode == false)
+    {
+        UiSpectrum_Init();      // init spectrum scope
+    }
+}
+
 void UiDriver_HandleTouchScreen()
 {
     if (ts.show_debug_info)					// show coordinates for coding purposes
@@ -582,18 +594,15 @@ void UiDriver_HandleTouchScreen()
             ts.menu_var_changed = 1;
       		decr_wrap_uint8(&sd.magnify,MAGNIFY_MIN,MAGNIFY_MAX);
 
-            UiSpectrum_ClearWaterfallData();
-            UiSpectrum_InitSpectrumDisplay();		// init spectrum scope
-            AudioDriver_SetRxAudioProcessing(ts.dmod_mode, false);
+      		UiDriver_SpectrumZoomChangeLevel();
         }
         if(UiDriver_CheckTouchCoordinates(52,60,26,32))			// wf/scope bar magnify up
         {
             ts.menu_var_changed = 1;
       		incr_wrap_uint8(&sd.magnify,MAGNIFY_MIN,MAGNIFY_MAX);
 
-            UiSpectrum_ClearWaterfallData();
-            UiSpectrum_InitSpectrumDisplay();		// init spectrum scope
-            AudioDriver_SetRxAudioProcessing(ts.dmod_mode, false);
+            UiDriver_SpectrumZoomChangeLevel();
+
         }
         if(UiDriver_CheckTouchCoordinates(43,60,00,04))			// TUNE button
         {
@@ -1106,10 +1115,10 @@ void UiDriver_CopyVfoAB()
 
         if (ts.menu_mode == false)
         {
-            UiSpectrum_ClearDisplay();          // clear display under spectrum scope
+            UiSpectrum_Clear();          // clear display under spectrum scope
             UiLcdHy28_PrintText(80,160,is_vfo_b()?"VFO B -> VFO A":"VFO A -> VFO B",Cyan,Black,1);
             non_os_delay_multi(18);
-            UiSpectrum_InitSpectrumDisplay();           // init spectrum scope
+            UiSpectrum_Init();           // init spectrum scope
         }
 }
 
@@ -1255,7 +1264,7 @@ static void UiDriver_ProcessKeyboard()
             case BUTTON_F1_PRESSED:	// Press-and-hold button F1:  Write settings to EEPROM
                 if(ts.txrx_mode == TRX_MODE_RX)	 				// only allow EEPROM write in receive mode
                 {
-                    UiSpectrum_ClearDisplay();
+                    UiSpectrum_Clear();
                     UiDriver_SaveConfiguration();
                     HAL_Delay(3000);
 
@@ -1268,7 +1277,7 @@ static void UiDriver_ProcessKeyboard()
                     }
                     else
                     {
-                        UiSpectrum_InitSpectrumDisplay();          // not in menu mode, redraw spectrum scope
+                        UiSpectrum_Init();          // not in menu mode, redraw spectrum scope
                     }
                 }
                 break;
@@ -1351,15 +1360,8 @@ static void UiDriver_ProcessKeyboard()
                 break;
             case BUTTON_G3_PRESSED:		 	// Press-and-hold button G3
             {
-                UiDriver_UpdateDisplayAfterParamChange();			// generate "reference" for sidetone frequency
-                if(ts.AM_experiment)
-                {
-                    ts.AM_experiment = 0;
-                }
-                else
-                {
-                    ts.AM_experiment = 1;
-                }
+                UiDriver_UpdateDisplayAfterParamChange();
+                // formerly generate "reference" for sidetone frequency
                 break;
             }
             case BUTTON_G4_PRESSED:		 	// Press-and-hold button G4 - Change filter bandwidth, allowing disabled filters, or do tone burst if in FM transmit
@@ -1504,7 +1506,8 @@ void UiDriver_UpdateDisplayAfterParamChange()
     UiDriver_DisplayMemoryLabel();
 
     UiDriver_DisplayFilter();    // make certain that numerical on-screen bandwidth indicator is updated
-    UiDriver_DisplayFilterBW();  // update on-screen filter bandwidth indicator (graphical)
+
+    UiSpectrum_DisplayFilterBW();  // update on-screen filter bandwidth indicator (graphical)
 
     UiDriver_RefreshEncoderDisplay();
 
@@ -1593,7 +1596,7 @@ static void UiDriver_ProcessFunctionKeyClick(ulong id)
                 ts.encoder3state = filter_path_change;
                 filter_path_change = false;			// deactivate while in menu mode
                 UiDriver_DisplayFilter();
-                UiSpectrum_ClearDisplay();
+                UiSpectrum_Clear();
                 UiDriver_FButton_F1MenuExit();
                 UiDriver_FButtonLabel(2,"PREV",Yellow);
                 UiDriver_FButtonLabel(3,"NEXT",Yellow);
@@ -1614,7 +1617,7 @@ static void UiDriver_ProcessFunctionKeyClick(ulong id)
                 ts.menu_mode = 0;
                 filter_path_change = ts.encoder3state;
                 UiDriver_DisplayFilter();
-                UiSpectrum_InitSpectrumDisplay();			// init spectrum scope
+                UiSpectrum_Init();			// init spectrum scope
                 //
                 // Restore encoder displays to previous modes
                 UiDriver_RefreshEncoderDisplay();
@@ -1667,7 +1670,7 @@ static void UiDriver_ProcessFunctionKeyClick(ulong id)
             }
             else	 		// in memory mode
             {
-                UiSpectrum_ClearDisplay();		// always clear displayclear display
+                UiSpectrum_Clear();		// always clear displayclear display
                 if(!ts.mem_disp)	 	// are we NOT in memory display mode at this moment?
                 {
                     ts.mem_disp = 1;	// we are not - turn it on
@@ -1675,7 +1678,7 @@ static void UiDriver_ProcessFunctionKeyClick(ulong id)
                 else	 				// we are in memory display mode
                 {
                     ts.mem_disp = 0;	// turn it off
-                    UiSpectrum_InitSpectrumDisplay();			// init spectrum scope
+                    UiSpectrum_Init();			// init spectrum scope
                 }
             }
         }
@@ -1885,13 +1888,17 @@ const BandGenInfo bandGenInfo[] =
 //*----------------------------------------------------------------------------
 static void UiDriver_DisplayMemoryLabel()
 {
-     if (ts.band < MAX_BAND_NUM)
+  	char txt[12];
+    uint32_t col = White;
+    if (ts.band < MAX_BAND_NUM && ts.cat_band_index == 255)
     {
-        char txt[12];
-        uint32_t col = White;
-        snprintf(txt,12,"Bnd%s ", bandInfo[ts.band].name);
-        UiLcdHy28_PrintText(161+(SMALL_FONT_WIDTH * 11)+4,  64,txt,col,Black,0);
+      snprintf(txt,12,"Bnd%s ", bandInfo[ts.band].name);
     }
+    if (ts.cat_band_index != 255)		// no band storage place active because of "CAT running in sandbox"
+    {
+      snprintf(txt,12,"  CAT  ");
+    }
+    UiLcdHy28_PrintText(161+(SMALL_FONT_WIDTH * 11)+4,  64,txt,col,Black,0);
  }
 
 
@@ -1997,7 +2004,7 @@ static void UiDriver_CreateDesktop()
     UiDriver_CreateMeters();
 
     // Spectrum scope
-    UiSpectrum_InitSpectrumDisplay();
+    UiSpectrum_Init();
 
     UiDriver_RefreshEncoderDisplay();
 
@@ -2618,10 +2625,7 @@ void UiDriver_UpdateFrequency(bool force_update, enum UpdateFrequencyMode_t mode
     if(mode == UFM_SMALL_TX)
     // are we updating the TX frequency (small, lower display)?
     {
-        uint8_t tx_vfo = is_vfo_b()?VFO_A:VFO_B;
-
-        // TX uses the other VFO; RX == A -> TX == B and vice versa
-        dial_freq = vfo[tx_vfo].band[ts.band].dial_value / TUNE_MULT;
+        dial_freq = RadioManagement_GetTXDialFrequency() / TUNE_MULT;
 
         // we check with the si570 code if the frequency is tunable, we do not tune to it.
         lo_result = RadioManagement_ValidateFrequencyForTX(dial_freq);
@@ -2638,9 +2642,7 @@ void UiDriver_UpdateFrequency(bool force_update, enum UpdateFrequencyMode_t mode
     if (mode == UFM_SMALL_RX && ts.txrx_mode == TRX_MODE_TX )
     // we are not going to show the tx frequency here (aka dial_freq) so we cannot use dial_freq
     {
-        uint8_t rx_vfo = is_vfo_b()?VFO_B:VFO_A;
-
-        dial_freq = vfo[rx_vfo].band[ts.band].dial_value / TUNE_MULT;
+        dial_freq = RadioManagement_GetRXDialFrequency() / TUNE_MULT;
 
         // we check with the si570 code if the frequency is tunable, we do not tune to it.
         // lo_result = RadioManagement_ValidateFrequencyForTX(dial_freq);
@@ -2658,7 +2660,7 @@ void UiDriver_UpdateFrequency(bool force_update, enum UpdateFrequencyMode_t mode
                 UiDriver_DisplayBandForFreq(dial_freq);
                 // check which band in which we are currently tuning and update the display
 
-                UiDriver_UpdateLcdFreq(dial_freq + ((ts.txrx_mode == TRX_MODE_RX)?(ts.rit_value*20):0) ,White, UFM_SECONDARY);
+                UiDriver_UpdateLcdFreq(RadioManagement_GetRXDialFrequency() / TUNE_MULT ,White, UFM_SECONDARY);
                 // set mode parameter to UFM_SECONDARY to update secondary display (it shows real RX frequency if RIT is being used)
                 // color argument is not being used by secondary display
             }
@@ -3848,7 +3850,11 @@ static void UiDriver_CheckEncoderThree()
             case ENC_THREE_MODE_RIT:
                 if(ts.txrx_mode == TRX_MODE_RX)
                 {
+                    int16_t old_rit_value =ts.rit_value;
                     ts.rit_value = change_and_limit_int(ts.rit_value,pot_diff_step,MIN_RIT_VALUE,MAX_RIT_VALUE);
+
+                    ts.dial_moved = ts.rit_value != old_rit_value;
+
                     // Update RIT
                     UiDriver_DisplayRit(1);
                     // Change frequency
@@ -4596,73 +4602,6 @@ void UiDriver_DisplayFilter()
 //* Functions called    :
 //*----------------------------------------------------------------------------
 //
-void UiDriver_DisplayFilterBW()
-{
-    float	width, offset, calc;
-    int	lpos;
-    uint32_t clr;
-
-    if(ts.menu_mode == 0)
-    {// bail out if in menu mode
-        // Update screen indicator - first get the width and center-frequency offset of the currently-selected filter
-
-        const FilterPathDescriptor* path_p = &FilterPathInfo[ts.filter_path];
-        const FilterDescriptor* filter_p = &FilterInfo[path_p->id];
-        offset = path_p->offset;
-        width = filter_p->width;
-
-        if (offset == 0)
-        {
-            offset = width/2;
-        }
-
-        calc = IQ_SAMPLE_RATE/((1 << sd.magnify) * FILT_DISPLAY_WIDTH);		// magnify mode is on
-
-        if(!sd.magnify)	 	// is magnify mode on?
-        {
-            lpos = 130-(AudioDriver_GetTranslateFreq()/187);
-        }
-        else	 	// magnify mode is on
-        {
-            lpos = 130;								// line is alway in center in "magnify" mode
-        }
-
-        offset /= calc;							// calculate filter center frequency offset in pixels
-        width /= calc;							// calculate width of line in pixels
-
-        if(RadioManagement_UsesBothSidebands(ts.dmod_mode))	 	// special cases - AM, SAM and FM, which are double-sidebanded
-        {
-            lpos -= width;					// line starts "width" below center
-            width *= 2;						// the width is double in AM & SAM, above and below center
-        }
-        else if(RadioManagement_LSBActive(ts.dmod_mode))	// not AM, but LSB:  calculate position of line, compensating for both width and the fact that SSB/CW filters are not centered
-        {
-            lpos -= (offset + (width/2));	// if LSB it will be below zero Hz
-        }
-        else				// USB mode
-        {
-            lpos += (offset - (width/2));			// if USB it will be above zero Hz
-        }
-
-        // get color for line
-        UiMenu_MapColors(ts.filter_disp_colour,NULL, &clr);
-        //	erase old line by clearing whole area
-        UiLcdHy28_DrawStraightLineDouble((POS_SPECTRUM_IND_X), (POS_SPECTRUM_IND_Y + POS_SPECTRUM_FILTER_WIDTH_BAR_Y), 256, LCD_DIR_HORIZONTAL, Black);
-
-        if(POS_SPECTRUM_IND_X + lpos < POS_SPECTRUM_IND_X)			// prevents line to leave left border
-        {
-            width = width + lpos;
-            lpos = 0;
-        }
-        if(lpos + width > 256)										// prevents line to leave right border
-        {
-            width = 256 - lpos;
-        }
-
-        // draw line
-        UiLcdHy28_DrawStraightLineDouble((POS_SPECTRUM_IND_X + lpos), (POS_SPECTRUM_IND_Y + POS_SPECTRUM_FILTER_WIDTH_BAR_Y), (ushort)width, LCD_DIR_HORIZONTAL, clr);
-    }
-}
 
 
 //*----------------------------------------------------------------------------
@@ -4937,7 +4876,7 @@ static void UiDriver_PowerDownCleanup(bool saveConfiguration)
 
     ts.powering_down = 1;   // indicate that we should be powering down
 
-    UiSpectrum_ClearDisplay();   // clear display under spectrum scope
+    UiSpectrum_Clear();   // clear display under spectrum scope
 
     // hardware based mute
     Codec_MuteDAC(true);  // mute audio when powering down
@@ -6055,7 +5994,7 @@ void UiDriver_MainHandler()
             RadioManagement_HandlePttOnOff();
     }
 
-    UiSpectrum_RedrawSpectrumDisplay();
+    UiSpectrum_Redraw();
 
     // Expect the code below to be executed around every 40 - 80ms.
     // The exact time between two calls is unknown and varies with different
@@ -6140,6 +6079,7 @@ void UiDriver_MainHandler()
             if((df.tune_old != df.tune_new))
             {
                 UiDriver_FrequencyUpdateLOandDisplay(false);
+                UiDriver_DisplayMemoryLabel();				// this is because a frequency dialing via CAT must be indicated if "CAT in sandbox" is active
             }
             else if (df.temp_factor_changed  || ts.tune_freq != ts.tune_freq_req)
             {
