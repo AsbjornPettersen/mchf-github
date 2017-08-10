@@ -662,7 +662,6 @@ typedef struct TransceiverState
     uint8_t	scope_grid_colour;	// saved color of spectrum scope grid;
     uint8_t	spectrum_centre_line_colour;	// color of center line of scope grid
     uint8_t	spectrum_freqscale_colour;	// color of spectrum scope frequency scale
-    uint8_t	scope_rescale_rate;	// rescale rate on the 'scope
     uint8_t	scope_agc_rate;		// agc rate on the 'scope
     uint8_t	spectrum_db_scale;	// db/Division scale setting on spectrum scope
     //
@@ -1153,6 +1152,11 @@ inline bool is_ssb(const uint32_t dmod_mode) {
 inline bool is_splitmode()
 {
     return (ts.vfo_mem_mode & VFO_MEM_MODE_SPLIT) != 0;
+}
+
+inline bool is_waterfallmode()
+{
+    return (ts.flags1 & FLAGS1_WFALL_SCOPE_TOGGLE) != 0;
 }
 
 
