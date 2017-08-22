@@ -291,13 +291,16 @@ struct mchf_waterfall
 // encoder one
 typedef enum {
     ENC_ONE_MODE_AUDIO_GAIN	 = 0,
+    ENC_ONE_MODE_RTTY_SPEED,
     ENC_ONE_MODE_ST_GAIN,
+    ENC_ONE_MODE_CMP_LEVEL,
     ENC_ONE_NUM_MODES
 } EncoderOneModes;
 //
 // encoder two
 typedef enum {
     ENC_TWO_MODE_RF_GAIN =		0,
+    ENC_TWO_MODE_RTTY_SHIFT,
     ENC_TWO_MODE_SIG_PROC,
     ENC_TWO_MODE_NR,
     ENC_TWO_MODE_NOTCH_F,
@@ -311,7 +314,8 @@ typedef enum {
 typedef enum {
     ENC_THREE_MODE_RIT =			0,
     ENC_THREE_MODE_CW_SPEED,
-    ENC_THREE_MAX_MODE
+    ENC_THREE_MODE_INPUT_CTRL,
+    ENC_THREE_NUM_MODES
 } EncoderThreeModes;
 
 //
@@ -337,7 +341,7 @@ typedef enum
 
 #define	SSB_TUNE_FREQ			750	// Frequency at which the SSB TX IQ gain and phase adjustment is to be done
 //
-#define SSB_RX_DELAY			450	// Delay for switching when going from TX to RX (this is 0.66uS units)
+#define VOICE_TX2RX_DELAY_DEFAULT			450	// Delay for switching when going from TX to RX (this is 0.66uS units)
 //
 
 // Audio sources for TX modulation
@@ -630,7 +634,7 @@ typedef struct TransceiverState
 #define CW_KEYER_WEIGHT_MIN      (50)
 
     uint8_t cw_rx_delay; // break time
-#define CW_RX_DELAY_DEFAULT     8
+#define CW_TX2RX_DELAY_DEFAULT     8
 #define CW_RX_DELAY_MAX         50  // Maximum TX to RX turnaround setting
 
     uint32_t cw_sidetone_freq;
@@ -939,7 +943,8 @@ typedef struct TransceiverState
     bool codec_present; // we detected a working codec
 	bool new_nb; // new noise blanker
 
-	bool enable_rtty_decode; // new rtty encoder (experimental)
+	uint8_t enable_rtty_decode; // new rtty encoder (experimental)
+	bool enable_ptt_rts; // disable/enable ptt via virtual serial port rts
 } TransceiverState;
 //
 extern __IO TransceiverState ts;

@@ -52,6 +52,8 @@
 #include "radio_management.h"
 #include "soft_tcxo.h"
 
+#include "rtty.h"
+
 static void 	UiDriver_PublicsInit();
 
 static void 	UiDriver_ProcessKeyboard();
@@ -75,7 +77,7 @@ static void 	UiDriver_InitFrequency();
 static void     UiDriver_UpdateLcdFreq(ulong dial_freq,ushort color,ushort mode);
 static bool 	UiDriver_IsButtonPressed(ulong button_num);
 static void		UiDriver_TimeScheduler();				// Also handles audio gain and switching of audio on return from TX back to RX
-static void 	UiDriver_ChangeToNextDemodMode(bool include_disabled_modes);
+static void 	UiDriver_ChangeToNextDemodMode(bool select_alternative_mode);
 static void 	UiDriver_ChangeBand(uchar is_up);
 static bool 	UiDriver_CheckFrequencyEncoder();
 
@@ -93,8 +95,6 @@ static uchar    UiDriver_DisplayBandForFreq(ulong freq);
 static void     UiDriver_DisplayEncoderOneMode();
 static void     UiDriver_DisplayEncoderTwoMode();
 static void     UiDriver_DisplayEncoderThreeMode();
-
-static void     UiDriver_DisplayFilter(void);
 
 static void 	UiDriver_DisplayNoiseBlanker(bool encoder_active);
 static void 	UiDriver_DisplayDSPMode(bool encoder_active);
@@ -138,6 +138,10 @@ static void UiDriver_HandleBandButtons(uint16_t button);
 static void UiDriver_KeyTestScreen();
 
 static bool UiDriver_SaveConfiguration();
+
+static void UiDriver_DisplayRttySpeed(bool encoder_active);
+static void UiDriver_DisplayRttyShift(bool encoder_active);
+
 
 // Tuning steps
 const ulong tune_steps[T_STEP_MAX_STEPS] =
@@ -437,6 +441,37 @@ static void   UiDriver_LcdBlankingProcessTimer()
     }
 }
 
+#define LEFTBOX_ROW_H  (14+12+2)
+#define LEFTBOX_ROW_2ND_OFF  (13)
+static void UiDriver_LeftBoxDisplay(const uint8_t row, const char *label, bool encoder_active,
+                            const char* text, uint32_t color, uint32_t clr_val, bool text_is_value)
+{
+
+    uint32_t label_color = encoder_active?Black:color;
+
+    // max visibility of active element
+    uint32_t bg_color = encoder_active?Orange:Blue;
+    uint32_t brdr_color = encoder_active?Orange:Blue;
+
+
+    UiLcdHy28_DrawEmptyRect(POS_LEFTBOXES_IND_X, POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H), LEFTBOX_ROW_H - 2, LEFTBOX_WIDTH - 2, brdr_color);
+    UiLcdHy28_PrintTextCentered(POS_LEFTBOXES_IND_X + 1, POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1,LEFTBOX_WIDTH - 3, label,
+                        label_color, bg_color, 0);
+
+    // this causes flicker, but I am too lazy to fix that now
+    UiLcdHy28_DrawFullRect(POS_LEFTBOXES_IND_X + 1, POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1 + 12, LEFTBOX_ROW_H - 4 - 11, LEFTBOX_WIDTH - 3, text_is_value?Black:bg_color);
+    if (text_is_value)
+    {
+        UiLcdHy28_PrintTextRight((POS_LEFTBOXES_IND_X + LEFTBOX_WIDTH - 4), (POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1 + LEFTBOX_ROW_2ND_OFF), text,
+                clr_val, text_is_value?Black:bg_color, 0);
+    }
+    else
+    {
+        UiLcdHy28_PrintTextCentered((POS_LEFTBOXES_IND_X + 1), (POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1 + LEFTBOX_ROW_2ND_OFF),LEFTBOX_WIDTH - 3, text,
+                color, bg_color, 0);
+    }
+}
+
 static void UiDriver_LcdBlankingStealthSwitch()
 {
 	if(ts.lcd_backlight_blanking & LCD_BLANKING_ENABLE)
@@ -450,8 +485,27 @@ static void UiDriver_LcdBlankingStealthSwitch()
 	}
 }
 
+void UiDriver_DisplayFilter()
+{
+    const char* filter_ptr;
+    uint32_t font_clr= filter_path_change?Black:White;
 
-void UiDriver_HandleSwitchToNextDspMode()
+    const char *filter_names[2];
+
+    AudioFilter_GetNamesOfFilterPath(ts.filter_path,filter_names);
+    if (filter_names[1] != NULL)
+    {
+        filter_ptr = filter_names[1];
+    }
+    else
+    {
+        filter_ptr = " ";
+    }
+
+    UiDriver_LeftBoxDisplay(1,filter_names[0],filter_path_change,filter_ptr,font_clr, font_clr,false);
+}
+
+static void UiDriver_HandleSwitchToNextDspMode()
 {
     if(ts.dmod_mode != DEMOD_FM)	  // allow selection/change of DSP only if NOT in FM
     {
@@ -513,6 +567,39 @@ void UiDriver_HandleSwitchToNextDspMode()
         AudioDriver_SetRxAudioProcessing(ts.dmod_mode, true);        // update DSP/filter settings
         UiDriver_DisplayEncoderTwoMode();         // DSP control is mapped to column 2
     }
+}
+
+// TODO: most of this belongs to radio management, not UI
+static void UiDriver_ToggleDigitalMode()
+{
+    if (ts.digital_mode != DigitalMode_None)
+    {
+        // a valid digital mode is set but may not be active yet
+        if (ts.dmod_mode != DEMOD_DIGI)
+        {
+            if (RadioManagement_IsApplicableDemodMode(DEMOD_DIGI))
+            {
+                // this will switch to the corresponding sideband if we come from
+                // SSB, otherwise the automatically selected default (AUTO LSB/USB ON) or the previously used
+                // will be the selected one.
+                if (is_ssb(ts.dmod_mode))
+                {
+                    ts.digi_lsb = RadioManagement_LSBActive(ts.dmod_mode);
+                }
+                RadioManagement_SetDemodMode(DEMOD_DIGI);
+            }
+        }
+    }
+    else
+    {
+        if (ts.dmod_mode == DEMOD_DIGI)
+        {
+            // we are in digital mode but the current digital mode is in fact
+            // None, i.e. we are going analog now
+            RadioManagement_SetDemodMode(ts.digi_lsb?DEMOD_LSB:DEMOD_USB);
+        }
+    }
+    UiDriver_UpdateDisplayAfterParamChange();
 }
 
 /*
@@ -683,39 +770,11 @@ void UiDriver_HandleTouchScreen()
         }
         if(UiDriver_CheckTouchCoordinates(0,7,10,13))			// toggle digital modes
         {
-            incr_wrap_uint8(&ts.digital_mode,0,1);
+            incr_wrap_uint8(&ts.digital_mode,0,DigitalMode_RTTY);
             // We limit the reachable modes to the ones truly available
             // which is FreeDV1 for now
-
-            if (ts.digital_mode>0)
-            {
-                if (ts.dmod_mode != DEMOD_DIGI)
-                {
-                    if (RadioManagement_IsApplicableDemodMode(DEMOD_DIGI))
-                    {
-                        // this will switch to the corresponding sideband if we come from
-                        // SSB, otherwise the automatically selected default (AUTO LSB/USB ON) or the previously used
-                        // will be the selected one.
-                        if (is_ssb(ts.dmod_mode))
-                        {
-                            ts.digi_lsb = RadioManagement_LSBActive(ts.dmod_mode);
-                        }
-                        RadioManagement_SetDemodMode(DEMOD_DIGI);
-                    }
-                }
-                ts.dvmode = true;
-            }
-            else
-            {
-                ts.dvmode = false;
-                if (ts.dmod_mode == DEMOD_DIGI)
-                {
-                    RadioManagement_SetDemodMode(ts.digi_lsb?DEMOD_LSB:DEMOD_USB);
-                }
-            }
-            RadioManagement_ChangeCodec(ts.digital_mode,ts.dvmode);
-            UiDriver_UpdateDisplayAfterParamChange();
-        }
+            UiDriver_ToggleDigitalMode();
+         }
 
         if(UiDriver_CheckTouchCoordinates(26,35,39,46))			// dynamic tuning activation
         {
@@ -728,7 +787,7 @@ void UiDriver_HandleTouchScreen()
                 ts.flags1 &= ~FLAGS1_DYN_TUNE_ENABLE;	// then turn it off
             }
 
-            UiDriver_ShowStep();
+            UiDriver_DisplayFreqStepSize();
         }
     }
     else								// menu screen functions
@@ -940,36 +999,6 @@ void UiDriver_EncoderDisplay(const uint8_t row, const uint8_t column, const char
                              color, Black, 0);
 }
 
-#define LEFTBOX_ROW_H  (14+12+2)
-#define LEFTBOX_ROW_2ND_OFF  (13)
-static void UiDriver_LeftBoxDisplay(const uint8_t row, const char *label, bool encoder_active,
-                            const char* text, uint32_t color, uint32_t clr_val, bool text_is_value)
-{
-
-    uint32_t label_color = encoder_active?Black:color;
-
-    // max visibility of active element
-    uint32_t bg_color = encoder_active?Orange:Blue;
-    uint32_t brdr_color = encoder_active?Orange:Blue;
-
-
-    UiLcdHy28_DrawEmptyRect(POS_LEFTBOXES_IND_X, POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H), LEFTBOX_ROW_H - 2, LEFTBOX_WIDTH - 2, brdr_color);
-    UiLcdHy28_PrintTextCentered(POS_LEFTBOXES_IND_X + 1, POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1,LEFTBOX_WIDTH - 3, label,
-                        label_color, bg_color, 0);
-
-    // this causes flicker, but I am too lazy to fix that now
-    UiLcdHy28_DrawFullRect(POS_LEFTBOXES_IND_X + 1, POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1 + 12, LEFTBOX_ROW_H - 4 - 11, LEFTBOX_WIDTH - 3, text_is_value?Black:bg_color);
-    if (text_is_value)
-    {
-        UiLcdHy28_PrintTextRight((POS_LEFTBOXES_IND_X + LEFTBOX_WIDTH - 4), (POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1 + LEFTBOX_ROW_2ND_OFF), text,
-                clr_val, text_is_value?Black:bg_color, 0);
-    }
-    else
-    {
-        UiLcdHy28_PrintTextCentered((POS_LEFTBOXES_IND_X + 1), (POS_LEFTBOXES_IND_Y + (row * LEFTBOX_ROW_H) + 1 + LEFTBOX_ROW_2ND_OFF),LEFTBOX_WIDTH - 3, text,
-                color, bg_color, 0);
-    }
-}
 
 static void UiDriver_FButton_F1MenuExit()
 {
@@ -1316,7 +1345,7 @@ static void UiDriver_ProcessKeyboard()
             case BUTTON_G1_PRESSED:	// Press-and-hold button G1 - Change operational mode, but include "disabled" modes
                 if(ts.txrx_mode == TRX_MODE_RX)	 	// allow mode changes only in RX
                 {
-                    UiDriver_ChangeToNextDemodMode(1);		// go to next mode, including disabled modes
+                    UiDriver_ChangeToNextDemodMode(1);		// go to next alternative mode
                 }
                 break;
             case BUTTON_G2_PRESSED:		// Press and hold of BUTTON_G2 - turn DSP off/on
@@ -1484,7 +1513,7 @@ void UiDriver_UpdateDisplayAfterParamChange()
 {
     UiDriver_FrequencyUpdateLOandDisplay(false);   // update frequency display without checking encoder
 
-    UiDriver_ShowMode();
+    UiDriver_DisplayDemodMode();
 
     UiDriver_DisplayMemoryLabel();
 
@@ -1552,7 +1581,7 @@ static void UiDriver_PressHoldStep(uchar is_up)
         df.selected_idx = plus_idx;
     }
     //
-    UiDriver_ShowStep();		// update display
+    UiDriver_DisplayFreqStepSize();		// update display
 }
 
 //*----------------------------------------------------------------------------
@@ -1693,14 +1722,7 @@ static void UiDriver_ProcessFunctionKeyClick(ulong id)
 }
 
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverShowMode
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
-void UiDriver_ShowMode()
+void UiDriver_DisplayDemodMode()
 {
     // Clear control
     char* txt = "???";
@@ -1733,8 +1755,6 @@ void UiDriver_ShowMode()
         txt = "AM";
         break;
     case DEMOD_FM:
-
-
         txt = RadioManagement_FmDevIs5khz() ? "FM-W" : "FM-N";
         {
             if(ts.txrx_mode == TRX_MODE_RX)
@@ -1769,10 +1789,17 @@ void UiDriver_ShowMode()
         txt = ts.cw_lsb?"CW-L":"CW-U";
         break;
     case DEMOD_DIGI:
-            txt = ts.digi_lsb?"DI-L":"DI-U";
+        switch(ts.digital_mode)
+        {
+        case DigitalMode_RTTY:
+            txt = ts.digi_lsb?"RT-L":"RT-U";
             break;
-    default:
+        default:
+            txt = ts.digi_lsb?"DI-L":"DI-U";
+        }
         break;
+        default:
+            break;
     }
     UiLcdHy28_PrintTextCentered(POS_DEMOD_MODE_MASK_X,POS_DEMOD_MODE_MASK_Y,POS_DEMOD_MODE_MASK_W,txt,clr_fg,clr_bg,0);
 
@@ -1780,7 +1807,7 @@ void UiDriver_ShowMode()
 }
 
 
-void UiDriver_ShowStep()
+void UiDriver_DisplayFreqStepSize()
 {
 
     int	line_loc;
@@ -1939,8 +1966,6 @@ static void UiDriver_DisplayBand(uchar band)
     // if Band = "Gen" AND frequency inside one of the broadcast bands, print name of the band
 }
 
-// TODO: Move out to RF HAL
-// TODO: Move out to RF HAL
 //*----------------------------------------------------------------------------
 //* Function Name       : UiDriverInitMainFreqDisplay
 //* Object              :
@@ -1956,7 +1981,7 @@ static void UiDriver_CreateMainFreqDisplay()
         UiLcdHy28_PrintText(POS_TUNE_FREQ_X-16,POS_TUNE_FREQ_Y,"          ",White,Black,1);	// clear large frequency digits
         UiDriver_DisplaySplitFreqLabels();
     }
-    UiDriver_ShowStep();
+    UiDriver_DisplayFreqStepSize();
 }
 
 //*----------------------------------------------------------------------------
@@ -2885,7 +2910,7 @@ void UiDriver_ChangeTuningStep(uchar is_up)
     df.selected_idx = idx;
 
     // Update step on screen
-    UiDriver_ShowStep();
+    UiDriver_DisplayFreqStepSize();
 
 }
 
@@ -2990,7 +3015,7 @@ void UiDriver_KeyboardProcessOldClicks()
             ts.tune_step = STEP_PRESS_OFF;                        // yes, cancel offset
             df.selected_idx = ts.tune_step_idx_holder;            // restore previous setting
             df.tuning_step    = tune_steps[df.selected_idx];
-            UiDriver_ShowStep();
+            UiDriver_DisplayFreqStepSize();
         }
     }
 }
@@ -3006,8 +3031,9 @@ enum TRX_States_t
 
 static void UiDriver_TxRxUiSwitch(enum TRX_States_t state)
 {
-    static uchar enc_one_mode = ENC_ONE_MODE_AUDIO_GAIN;  // stores modes of encoder when we enter TX
-    static uchar enc_three_mode = ENC_THREE_MODE_CW_SPEED;    // stores modes of encoder when we enter TX
+    static uchar enc_one_mode =     ENC_ONE_MODE_AUDIO_GAIN;  // stores modes of encoder when we enter TX
+    static uchar enc_two_mode =     ENC_TWO_MODE_RF_GAIN;    // stores modes of encoder when we enter TX
+    static uchar enc_three_mode =   ENC_THREE_MODE_CW_SPEED;    // stores modes of encoder when we enter TX
 
 
     {
@@ -3021,10 +3047,21 @@ static void UiDriver_TxRxUiSwitch(enum TRX_States_t state)
             {
                 // change display related to encoder one to TX mode (e.g. Sidetone gain or Compression level)
                 enc_one_mode = ts.enc_one_mode;
-                ts.enc_one_mode = ENC_ONE_MODE_ST_GAIN;
+                enc_two_mode = ts.enc_two_mode;
                 enc_three_mode = ts.enc_thr_mode;
-                ts.enc_thr_mode = ENC_THREE_MODE_CW_SPEED;
 
+                // we reconfigure the encoders according to the currently selected mode
+                // for now this is only relevant for CW
+                if (ts.dmod_mode == DEMOD_CW)
+                {
+                    ts.enc_one_mode = ENC_ONE_MODE_ST_GAIN;
+                    ts.enc_thr_mode = ENC_THREE_MODE_CW_SPEED;
+                }
+                else // for all other modes we activate the compressor setting and input gain control
+                {
+                    ts.enc_one_mode = ENC_ONE_MODE_CMP_LEVEL;
+                    ts.enc_thr_mode = ENC_THREE_MODE_INPUT_CTRL;
+                }
             }
 
             // force redisplay of Encoder boxes and values
@@ -3038,6 +3075,7 @@ static void UiDriver_TxRxUiSwitch(enum TRX_States_t state)
             if((ts.flags1 & FLAGS1_TX_AUTOSWITCH_UI_DISABLE) == false)                // If auto-switch on TX/RX is enabled
             {
                 ts.enc_one_mode = enc_one_mode;
+                ts.enc_two_mode = enc_two_mode;
                 ts.enc_thr_mode = enc_three_mode;
             }
 
@@ -3161,7 +3199,7 @@ static void UiDriver_TimeScheduler()
                 || (old_tone_det_enable != (bool)ts.fm_subaudible_tone_det_select))       // did the squelch or tone detect state just change?
         {
 
-            UiDriver_ShowMode();                           // yes - update on-screen indicator to show that squelch is open/closed
+            UiDriver_DisplayDemodMode();                           // yes - update on-screen indicator to show that squelch is open/closed
             old_squelch = ads.fm_squelched;
             old_tone_det = ads.fm_subaudible_tone_detected;
             old_tone_det_enable = (bool)ts.fm_subaudible_tone_det_select;
@@ -3214,7 +3252,7 @@ static void UiDriver_TimeScheduler()
 
         if(ads.fm_tone_burst_active != old_burst_active)       // did the squelch or tone detect state just change?
         {
-            UiDriver_ShowMode();                           // yes - update on-screen indicator to show that tone burst is on/off
+            UiDriver_DisplayDemodMode();                           // yes - update on-screen indicator to show that tone burst is on/off
             old_burst_active = ads.fm_tone_burst_active;
         }
     }
@@ -3267,12 +3305,76 @@ static void UiDriver_TimeScheduler()
 //* Functions called    :
 //*----------------------------------------------------------------------------
 
-static void UiDriver_ChangeToNextDemodMode(bool include_disabled_modes)
+/**
+ * This function is responsible for make the changes to the UI layout
+ * as required for a give new mode, such as enabling the right set of encoder boxes etc.
+ */
+typedef struct
 {
-    ulong loc_mode = ts.dmod_mode;	// copy to local, so IRQ is not affected
-    loc_mode = RadioManagement_NextDemodMode(loc_mode, include_disabled_modes);
-    RadioManagement_SetDemodMode(loc_mode);
+    int16_t encoder_modes[3];
+} encoder_mode_store_t;
+
+void UiDriver_SetDemodMode(uint8_t new_mode)
+{
+    RadioManagement_SetDemodMode(new_mode);
+#if 0
+    static encoder_mode_store_t demod_modes[] =
+    {
+            { ENC_ONE_MODE_AUDIO_GAIN, ENC_TWO_MODE_RF_GAIN, ENC_THREE_MODE_RIT }, // USB, LSB,(S)AM,FM,FreeDV
+            { ENC_ONE_MODE_ST_GAIN, -1, ENC_THREE_MODE_CW_SPEED }, // CW
+            { ENC_ONE_MODE_RTTY_SPEED, ENC_TWO_MODE_RTTY_SHIFT, -1 }, // RTTY
+    };
+#endif
+
+    switch(ts.dmod_mode)
+    {
+    case DEMOD_DIGI:
+    {
+        switch(ts.digital_mode)
+        {
+        case DigitalMode_RTTY:
+            if (ts.enc_one_mode != ENC_ONE_MODE_AUDIO_GAIN)
+            {
+                ts.enc_one_mode = ENC_ONE_MODE_RTTY_SPEED;
+            }
+            ts.enc_two_mode = ENC_TWO_MODE_RTTY_SHIFT;
+        }
+    }
+    break;
+
+    case DEMOD_CW:
+    {
+        if (ts.enc_one_mode != ENC_ONE_MODE_AUDIO_GAIN)
+        {
+            ts.enc_one_mode = ENC_ONE_MODE_ST_GAIN;
+        }
+        if (ts.enc_thr_mode != ENC_THREE_MODE_RIT)
+        {
+            ts.enc_thr_mode = ENC_THREE_MODE_CW_SPEED;
+        }
+    }
+    break;
+    default:
+        break;
+    }
     UiDriver_UpdateDisplayAfterParamChange();
+}
+
+static void UiDriver_ChangeToNextDemodMode(bool select_alternative_mode)
+{
+    ulong new_mode = ts.dmod_mode;	// copy to local, so IRQ is not affected
+    if (select_alternative_mode)
+    {
+        new_mode = RadioManagement_NextAlternativeDemodMode(new_mode);
+    }
+    else
+    {
+        new_mode = RadioManagement_NextNormalDemodMode(new_mode);
+    }
+
+    // TODO: We call this always, since we may have switched sidebands or the digital mode
+    // if we would remember that, we would decide if to call this.
+    UiDriver_SetDemodMode(new_mode);
 }
 
 /**
@@ -3516,10 +3618,7 @@ static bool UiDriver_CheckFrequencyEncoder()
 //*----------------------------------------------------------------------------
 static void UiDriver_CheckEncoderOne()
 {
-    int 	pot_diff;
-
-    pot_diff = UiDriverEncoderRead(ENC1);
-
+    int32_t pot_diff = UiDriverEncoderRead(ENC1);
 
     if (pot_diff)
     {
@@ -3529,29 +3628,27 @@ static void UiDriver_CheckEncoderOne()
         // Take appropriate action
         switch(ts.enc_one_mode)
         {
+        case ENC_ONE_MODE_RTTY_SPEED:
+            // Convert to Audio Gain incr/decr
+            rtty_ctrl_config.speed_idx = change_and_limit_int(rtty_ctrl_config.speed_idx,pot_diff_step,0,RTTY_SPEED_NUM-1);
+            RttyDecoder_Init();
+            UiDriver_DisplayRttySpeed(true);
+            break;
         // Update audio volume
         case ENC_ONE_MODE_AUDIO_GAIN:
             ts.rx_gain[RX_AUDIO_SPKR].value = change_and_limit_uint(ts.rx_gain[RX_AUDIO_SPKR].value,pot_diff_step,0,ts.rx_gain[RX_AUDIO_SPKR].max);
             UiDriver_DisplayAfGain(1);
             break;
-            // Sidetone gain or compression level
         case ENC_ONE_MODE_ST_GAIN:
-            if(ts.dmod_mode == DEMOD_CW)	 	// In CW mode - adjust sidetone gain
-            {
-                // Convert to Audio Gain incr/decr
-                ts.cw_sidetone_gain = change_and_limit_uint(ts.cw_sidetone_gain,pot_diff_step,0,SIDETONE_MAX_GAIN);
-                Codec_TxSidetoneSetgain(ts.txrx_mode);
-                UiDriver_DisplaySidetoneGain(true);
-            }
-            else	 		// In voice mode - adjust audio compression level
-            {
-                // Convert to Audio Gain incr/decr
-                ts.tx_comp_level = change_and_limit_int(ts.tx_comp_level,pot_diff_step,TX_AUDIO_COMPRESSION_MIN,TX_AUDIO_COMPRESSION_MAX);
-                AudioManagement_CalcTxCompLevel();		// calculate values for selection compression level
-                UiDriver_DisplayCmpLevel(1);	// update on-screen display
-            }
+            ts.cw_sidetone_gain = change_and_limit_uint(ts.cw_sidetone_gain,pot_diff_step,0,SIDETONE_MAX_GAIN);
+            Codec_TxSidetoneSetgain(ts.txrx_mode);
+            UiDriver_DisplaySidetoneGain(true);
             break;
-
+        case ENC_ONE_MODE_CMP_LEVEL:
+            ts.tx_comp_level = change_and_limit_int(ts.tx_comp_level,pot_diff_step,TX_AUDIO_COMPRESSION_MIN,TX_AUDIO_COMPRESSION_MAX);
+            AudioManagement_CalcTxCompLevel();		// calculate values for selection compression level
+            UiDriver_DisplayCmpLevel(true);	// update on-screen display
+            break;
         default:
             break;
         }
@@ -3567,69 +3664,11 @@ static void UiDriver_CheckEncoderOne()
 //*----------------------------------------------------------------------------
 static void UiDriver_CheckEncoderTwo()
 {
-    //char 	temp[10];
-    float32_t MAX_FREQ = 5000.0;
-    int 	pot_diff;
-
-
-
-    if (FilterPathInfo[ts.filter_path].sample_rate_dec == RX_DECIMATION_RATE_24KHZ)
-    {
-        MAX_FREQ = 10000.0;
-    }
-    else if (FilterPathInfo[ts.filter_path].sample_rate_dec == RX_DECIMATION_RATE_12KHZ)
-    {
-        MAX_FREQ = 5000.0;
-    }
-
-    pot_diff = UiDriverEncoderRead(ENC2);
-
-
-    // +++++++++++++++++++++++++++++++++++
-    float32_t	enc_multiplier;
-    static float 	enc_speed_avg = 0.0;  //keeps the averaged encoder speed
-    int		delta_t, enc_speed;
+    int32_t pot_diff = UiDriverEncoderRead(ENC2);
 
     if (pot_diff != 0)
     {
-        delta_t = ts.audio_int_counter;  // get ticker difference since last enc. change
-        ts.audio_int_counter = 0;		 //reset tick counter
-
         UiDriver_LcdBlankingStartTimer();	// calculate/process LCD blanking timing
-
-        if (delta_t > 300)
-        {
-            enc_speed_avg = 0;    //when leaving speedy turning set avg_speed to 0
-        }
-
-        enc_speed = div(4000,delta_t).quot*pot_diff;  // app. 4000 tics per second -> calc. enc. speed.
-
-        if (enc_speed > 500)
-        {
-            enc_speed = 500;    //limit calculated enc. speed
-        }
-        if (enc_speed < -500)
-        {
-            enc_speed = -500;
-        }
-
-        enc_speed_avg = 0.1*enc_speed + 0.9*enc_speed_avg; // averaging to smooth encoder speed
-
-        enc_multiplier = 1; //set standard speed
-
-        if ((enc_speed_avg > 80) || (enc_speed_avg < (-80)))
-        {
-            enc_multiplier = 10;    // turning medium speed -> increase speed by 10
-        }
-        if ((enc_speed_avg > 150) || (enc_speed_avg < (-150)))
-        {
-            enc_multiplier = 30;    //turning fast speed -> increase speed by 100
-        }
-        if ((enc_speed_avg > 300) || (enc_speed_avg < (-300)))
-        {
-            enc_multiplier = 100;    //turning fast speed -> increase speed by 100
-        }
-
 
         if(ts.menu_mode)
         {
@@ -3638,12 +3677,74 @@ static void UiDriver_CheckEncoderTwo()
         else
         {
             int8_t pot_diff_step = pot_diff < 0?-1:1;
+
+
             if(ts.txrx_mode == TRX_MODE_RX)
             {
-                //
-                // Take appropriate action
+
+                // dynamic encoder speed , used for notch and peak
+                static float    enc_speed_avg = 0.0;  //keeps the averaged encoder speed
+                int     delta_t, enc_speed;
+                float32_t   enc_multiplier;
+
+                delta_t = ts.audio_int_counter;  // get ticker difference since last enc. change
+                ts.audio_int_counter = 0;        //reset tick counter
+
+                if (delta_t > 300)
+                {
+                    enc_speed_avg = 0;    //when leaving speedy turning set avg_speed to 0
+                }
+
+                enc_speed = div(4000,delta_t).quot*pot_diff;  // app. 4000 tics per second -> calc. enc. speed.
+
+                if (enc_speed > 500)
+                {
+                    enc_speed = 500;    //limit calculated enc. speed
+                }
+                if (enc_speed < -500)
+                {
+                    enc_speed = -500;
+                }
+
+                enc_speed_avg = 0.1*enc_speed + 0.9*enc_speed_avg; // averaging to smooth encoder speed
+
+                enc_multiplier = 1; //set standard speed
+
+                if ((enc_speed_avg > 80) || (enc_speed_avg < (-80)))
+                {
+                    enc_multiplier = 10;    // turning medium speed -> increase speed by 10
+                }
+                if ((enc_speed_avg > 150) || (enc_speed_avg < (-150)))
+                {
+                    enc_multiplier = 30;    //turning fast speed -> increase speed by 100
+                }
+                if ((enc_speed_avg > 300) || (enc_speed_avg < (-300)))
+                {
+                    enc_multiplier = 100;    //turning fast speed -> increase speed by 100
+                }
+
+
+                // used for notch and peak
+                float32_t MAX_FREQ = 5000.0;
+
+                if (FilterPathInfo[ts.filter_path].sample_rate_dec == RX_DECIMATION_RATE_24KHZ)
+                {
+                    MAX_FREQ = 10000.0;
+                }
+                else if (FilterPathInfo[ts.filter_path].sample_rate_dec == RX_DECIMATION_RATE_12KHZ)
+                {
+                    MAX_FREQ = 5000.0;
+                }
+
+
+
                 switch(ts.enc_two_mode)
                 {
+                case ENC_TWO_MODE_RTTY_SHIFT:
+                    rtty_ctrl_config.shift_idx = change_and_limit_int(rtty_ctrl_config.shift_idx,pot_diff_step,0,RTTY_SHIFT_NUM-1);
+                    RttyDecoder_Init();
+                    UiDriver_DisplayRttyShift(1);
+                    break;
                 case ENC_TWO_MODE_RF_GAIN:
                     if(ts.dmod_mode != DEMOD_FM)	 	// is this *NOT* FM?  Change RF gain
                     {
@@ -3706,6 +3807,7 @@ static void UiDriver_CheckEncoderTwo()
                         {
                             ts.notch_frequency = ts.notch_frequency + 5.0 * enc_multiplier;
                         }
+
                         if(ts.notch_frequency > MAX_FREQ)
                         {
                             ts.notch_frequency = MAX_FREQ;
@@ -3833,7 +3935,7 @@ static void UiDriver_CheckEncoderThree()
             case ENC_THREE_MODE_RIT:
                 if(ts.txrx_mode == TRX_MODE_RX)
                 {
-                    int16_t old_rit_value =ts.rit_value;
+                    int16_t old_rit_value = ts.rit_value;
                     ts.rit_value = change_and_limit_int(ts.rit_value,pot_diff_step,MIN_RIT_VALUE,MAX_RIT_VALUE);
 
                     ts.dial_moved = ts.rit_value != old_rit_value;
@@ -3846,16 +3948,14 @@ static void UiDriver_CheckEncoderThree()
                 break;
                 // Keyer speed
             case ENC_THREE_MODE_CW_SPEED:
-                if(ts.dmod_mode == DEMOD_CW)	 		// in CW mode, adjust keyer speed
+                // Convert to Audio Gain incr/decr
+                ts.cw_keyer_speed = change_and_limit_int(ts.cw_keyer_speed,pot_diff_step,CW_KEYER_SPEED_MIN,CW_KEYER_SPEED_MAX);
+                CwGen_SetSpeed();
+                UiDriver_DisplayKeyerSpeed(1);
+                break;
+            case ENC_THREE_MODE_INPUT_CTRL:
+                // in voice mode, adjust audio input gain
                 {
-                    // Convert to Audio Gain incr/decr
-                    ts.cw_keyer_speed = change_and_limit_int(ts.cw_keyer_speed,pot_diff_step,CW_KEYER_SPEED_MIN,CW_KEYER_SPEED_MAX);
-                    CwGen_SetSpeed();
-                    UiDriver_DisplayKeyerSpeed(1);
-                }
-                else	 	// in voice mode, adjust audio gain
-                {
-
                     uint16_t gain_max = ts.tx_audio_source == TX_AUDIO_MIC?MIC_GAIN_MAX:LINE_GAIN_MAX;
                     uint16_t gain_min = ts.tx_audio_source == TX_AUDIO_MIC?MIC_GAIN_MIN:LINE_GAIN_MIN;
 
@@ -3875,91 +3975,95 @@ static void UiDriver_CheckEncoderThree()
     }
 }
 
-static void UiDriver_ChangeEncoderOneMode()
+static bool UiDriver_IsApplicableEncoderOneMode(uint8_t mode)
 {
-    // by default all boxes are disabled
-
-    if(ts.menu_mode == false)	// changes only when not in menu mode
+    bool retval = true;
+    switch(mode)
     {
-            ts.enc_one_mode++;
-            if(ts.enc_one_mode >= ENC_ONE_NUM_MODES)
-            {
-                ts.enc_one_mode = ENC_ONE_MODE_AUDIO_GAIN;
-            }
+    case ENC_ONE_MODE_RTTY_SPEED:
+        // only switch to rtty adjustment, if rtty enabled!
+        retval = ts.digital_mode == DigitalMode_RTTY && ts.dmod_mode == DEMOD_DIGI;
+        break;
+    case ENC_ONE_MODE_ST_GAIN:
+        retval = ts.dmod_mode == DEMOD_CW;
+        break;
+    case ENC_ONE_MODE_CMP_LEVEL:
+            retval = ts.dmod_mode != DEMOD_CW && ts.dmod_mode != DEMOD_DIGI;
+        break;
     }
-    UiDriver_DisplayEncoderOneMode();
+    return retval;
 }
+
 
 static void UiDriver_DisplayEncoderOneMode()
 {
-    uint8_t box_active[2] = { 0, 0 };
-
-    switch(ts.enc_one_mode)
-    {
-    case ENC_ONE_MODE_AUDIO_GAIN:
-        box_active[0] = 1;
-        break;
-    case ENC_ONE_MODE_ST_GAIN:
-        box_active[1] = 1;
-        break;
-    }
-
     // upper box
-    UiDriver_DisplayAfGain(box_active[0]);
+    UiDriver_DisplayAfGain(ts.enc_one_mode == ENC_ONE_MODE_AUDIO_GAIN);
 
     // lower box
-    if(ts.dmod_mode == DEMOD_CW)
+    switch(ts.enc_one_mode)
     {
-        UiDriver_DisplaySidetoneGain(box_active[1]);
-    }
-    else
-    {
-        UiDriver_DisplayCmpLevel(box_active[1]);
+    case ENC_ONE_MODE_RTTY_SPEED:
+        UiDriver_DisplayRttySpeed(1);
+        break;
+    case ENC_ONE_MODE_ST_GAIN:
+        UiDriver_DisplaySidetoneGain(1);
+        break;
+    case ENC_ONE_MODE_CMP_LEVEL:
+        UiDriver_DisplayCmpLevel(1);
+        break;
+    default:
+        // what to display if lower box is not active
+        if (ts.digital_mode == DigitalMode_RTTY && ts.dmod_mode == DEMOD_DIGI)
+        {
+            UiDriver_DisplayRttySpeed(0);
+        }
+        else if(ts.dmod_mode == DEMOD_CW)
+        {
+            UiDriver_DisplaySidetoneGain(0);
+        }
+        else
+        {
+            UiDriver_DisplayCmpLevel(0);
+        }
     }
 }
 
-static void UiDriver_ChangeEncoderTwoMode()
+static bool UiDriver_IsApplicableEncoderTwoMode(uint8_t mode)
 {
-    if(ts.menu_mode == false )	// changes only when not in menu mode
+    bool retval = true;
+    switch(mode)
     {
-        ts.enc_two_mode++;
-
-        // only switch to notch frequency adjustment, if notch enabled!
-        if(ts.enc_two_mode == ENC_TWO_MODE_NOTCH_F && is_dsp_mnotch() == false)
-        {
-            ts.enc_two_mode++;
-        }
-
-        // only switch to peak frequency adjustment, if peak enabled!
-        if(ts.enc_two_mode == ENC_TWO_MODE_PEAK_F && is_dsp_mpeak() == false)
-        {
-            ts.enc_two_mode++;
-        }
-
-        // flip round
-        if(ts.enc_two_mode >= ENC_TWO_NUM_MODES)
-        {
-            ts.enc_two_mode = ENC_TWO_MODE_RF_GAIN;
-        }
+    case ENC_TWO_MODE_RTTY_SHIFT:
+        // only switch to rtty adjustment, if rtty enabled!
+        retval = ts.digital_mode == DigitalMode_RTTY && ts.dmod_mode == DEMOD_DIGI;
+        break;
+    case ENC_TWO_MODE_NOTCH_F:
+        retval = is_dsp_mnotch();
+        break;
+    case ENC_TWO_MODE_PEAK_F:
+            retval = is_dsp_mpeak();
+        break;
     }
-    UiDriver_DisplayEncoderTwoMode();
+    return retval;
 }
+
 
 static void UiDriver_DisplayEncoderTwoMode()
 {
 
-    uint8_t inactive_mult = ts.menu_mode?0:1;
+    uint8_t inactive = ts.menu_mode?0:1;
     // we use this to disable all active displays once in menu mode
     switch(ts.enc_two_mode)
     {
     case ENC_TWO_MODE_RF_GAIN:
-        UiDriver_DisplayRfGain(1*inactive_mult);
+        UiDriver_DisplayRfGain(inactive);
         UiDriver_DisplayNoiseBlanker(0);
         UiDriver_DisplayDSPMode(0);
         break;
     case ENC_TWO_MODE_SIG_PROC:
         UiDriver_DisplayRfGain(0);
-        UiDriver_DisplayNoiseBlanker(1*inactive_mult);
+        UiDriver_DisplayNoiseBlanker(inactive);
         UiDriver_DisplayDSPMode(0);
         break;
     case ENC_TWO_MODE_PEAK_F:
@@ -3967,15 +4071,20 @@ static void UiDriver_DisplayEncoderTwoMode()
     case ENC_TWO_MODE_NR:
         UiDriver_DisplayRfGain(0);
         UiDriver_DisplayNoiseBlanker(0);
-        UiDriver_DisplayDSPMode(1*inactive_mult);
+        UiDriver_DisplayDSPMode(inactive);
         break;
     case ENC_TWO_MODE_BASS_GAIN:
         UiDriver_DisplayDSPMode(0);
-        UiDriver_DisplayTone(1*inactive_mult);
+        UiDriver_DisplayTone(inactive);
         break;
     case ENC_TWO_MODE_TREBLE_GAIN:
         UiDriver_DisplayDSPMode(0);
-        UiDriver_DisplayTone(1*inactive_mult);
+        UiDriver_DisplayTone(inactive);
+        break;
+    case ENC_TWO_MODE_RTTY_SHIFT:
+        UiDriver_DisplayRfGain(0);
+        UiDriver_DisplayDSPMode(0);
+        UiDriver_DisplayRttyShift(1);
         break;
     default:
         UiDriver_DisplayRfGain(0);
@@ -3986,80 +4095,106 @@ static void UiDriver_DisplayEncoderTwoMode()
 
 }
 
-static void UiDriver_ChangeEncoderThreeMode()
+
+static bool UiDriver_IsApplicableEncoderThreeMode(uint8_t mode)
 {
-    if(ts.menu_mode == false)	// changes only when not in menu mode
+    bool retval = true;
+    switch(mode)
     {
-        ts.enc_thr_mode++;
-        if(ts.enc_thr_mode >= ENC_THREE_MAX_MODE)
-        {
-            ts.enc_thr_mode = ENC_THREE_MODE_RIT;
-        }
+    case ENC_THREE_MODE_CW_SPEED:
+        retval = ts.dmod_mode == DEMOD_CW;
+        break;
     }
-    UiDriver_DisplayEncoderThreeMode();
+    return retval;
 }
+
 
 static void UiDriver_DisplayEncoderThreeMode()
 {
-    uint8_t box_active[2] = { 0, 0 };
-    // default: all boxes inactive
-
-    switch(ts.enc_thr_mode)
-    {
-    case ENC_THREE_MODE_RIT:
-        box_active[0] = 1;
-        break;
-    case ENC_THREE_MODE_CW_SPEED:
-        box_active[1] = 1;
-        break;
-    }
-
     // upper box
-    UiDriver_DisplayRit(box_active[0]);
+    UiDriver_DisplayRit(ts.enc_thr_mode == ENC_THREE_MODE_RIT);
 
     // lower box
-    if(ts.dmod_mode == DEMOD_CW)
+    switch(ts.enc_thr_mode)
     {
-        UiDriver_DisplayKeyerSpeed(box_active[1]);
-    }
-    else
-    {
-        UiDriver_DisplayLineInModeAndGain(box_active[1]);
+    case ENC_THREE_MODE_CW_SPEED:
+        UiDriver_DisplayKeyerSpeed(1);
+        break;
+    case ENC_THREE_MODE_INPUT_CTRL:
+        UiDriver_DisplayLineInModeAndGain(1);
+        break;
+    default:
+        // this defines what is shown if the lower box is not actively selected
+        if (ts.dmod_mode == DEMOD_CW)
+        {
+            UiDriver_DisplayKeyerSpeed(0);
+        }
+        else
+        {
+            UiDriver_DisplayLineInModeAndGain(0);
+        }
+        break;
+
     }
 }
 
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeAfGain
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
+/**
+ * Handles the execution of the change encoder logic for the 3 encoders
+ */
+
+static void UiDriver_ChangeEncoderMode(volatile uint8_t* mode_ptr, uint8_t num_modes, bool (*is_applicable_f)(uint8_t), void(*display_encoder_f)())
+{
+    if(ts.menu_mode == false)   // changes only when not in menu mode
+    {
+        uint8_t new_enc_mode = *mode_ptr;
+        do
+        {
+            new_enc_mode++;
+            new_enc_mode %= num_modes;
+        } while ((*is_applicable_f)(new_enc_mode)  == false && new_enc_mode != *mode_ptr );
+        if (new_enc_mode != *mode_ptr)
+        {
+            *mode_ptr = new_enc_mode;
+            (*display_encoder_f)();
+        }
+    }
+}
+
+static void UiDriver_ChangeEncoderOneMode()
+{
+    UiDriver_ChangeEncoderMode(&ts.enc_one_mode, ENC_ONE_NUM_MODES, UiDriver_IsApplicableEncoderOneMode, UiDriver_DisplayEncoderOneMode);
+}
+
+static void UiDriver_ChangeEncoderTwoMode()
+{
+    UiDriver_ChangeEncoderMode(&ts.enc_two_mode, ENC_TWO_NUM_MODES, UiDriver_IsApplicableEncoderTwoMode, UiDriver_DisplayEncoderTwoMode);
+}
+
+static void UiDriver_ChangeEncoderThreeMode()
+{
+    UiDriver_ChangeEncoderMode(&ts.enc_thr_mode, ENC_THREE_NUM_MODES, UiDriver_IsApplicableEncoderThreeMode, UiDriver_DisplayEncoderThreeMode);
+}
+
+/**
+ * @brief Displays audio speaker volume
+ */
 static void UiDriver_DisplayAfGain(bool encoder_active)
 {
     UiDriver_EncoderDisplaySimple(0,0,"AFG", encoder_active, ts.rx_gain[RX_AUDIO_SPKR].value);
 }
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeStGain
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
+/**
+ * @brief Display CW Sidetone gain (used during CW TX or training)
+ */
 static void UiDriver_DisplaySidetoneGain(bool encoder_active)
 {
     UiDriver_EncoderDisplaySimple(1,0,"STG", encoder_active, ts.cw_sidetone_gain);
 }
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeCmpLevel
-//* Object              : Display TX audio compression level
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
+/**
+ * @brief Display TX Compressor Level
+ */
 static void UiDriver_DisplayCmpLevel(bool encoder_active)
 {
     ushort 	color = encoder_active?White:Grey;
@@ -4098,14 +4233,6 @@ uint32_t dsp_nr_color_map()
     return color;
 }
 
-//
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeDSPMode
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
 static void UiDriver_DisplayDSPMode(bool encoder_active)
 {
     uint32_t clr = White;
@@ -4161,112 +4288,13 @@ static void UiDriver_DisplayDSPMode(bool encoder_active)
 
     UiDriver_LeftBoxDisplay(0,txt[0],encoder_active,txt[1],clr,clr_val,txt_is_value);
 }
-//
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeDigitalMode
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
-typedef struct DigitalModeDescriptor_s
-{
-    const char* label;
-    const uint32_t enabled;
-} DigitalModeDescriptor;
 
 
-typedef enum
-{
-    Digital = 0,
-    FreeDV1,
-    FreeDV2,
-    BPSK31,
-    RTTY,
-    SSTV,
-    WSPR_A,
-    WSPR_P,
-    DigitalModeNum
-} DigitalModes;
-// The following descriptor table has to be in the order of the enum above
-// This table is stored in flash (due to const) and cannot be written to
-// for operational data per mode [r/w], use a different table with order of modes
-const DigitalModeDescriptor digimodes[DigitalModeNum] =
-{
-    { "DIGITAL", true },
-    { "FreeDV", true },
-    { "FREEDV2", false },
-    { "BPSK 31", false },
-    { "RTTY", false },
-    { "SSTV", false },
-    { "WSPR A", false },
-    { "WSPR P", false },
-};
-
-static void UiDriver_DisplayDigitalMode()
-{
-
-    ushort bgclr = ts.dvmode?Orange:Blue;
-    ushort color = digimodes[ts.digital_mode].enabled?(ts.dvmode?Black:White):Grey2;
-
-    const char* txt = digimodes[ts.digital_mode].label;
-
-    // Draw line for box
-    UiLcdHy28_DrawStraightLine(POS_DIGMODE_IND_X,(POS_DIGMODE_IND_Y - 1),LEFTBOX_WIDTH,LCD_DIR_HORIZONTAL,bgclr);
-    UiLcdHy28_PrintTextCentered((POS_DIGMODE_IND_X),(POS_DIGMODE_IND_Y),LEFTBOX_WIDTH,txt,color,bgclr,0);
-
-    fdv_clear_display();
-}
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangePowerLevel
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
-static void UiDriver_DisplayPowerLevel()
-{
-    ushort color = White;
-    const char* txt;
-
-    switch(ts.power_level)
-    {
-    case PA_LEVEL_5W:
-        txt = "5W";
-        break;
-    case PA_LEVEL_2W:
-        txt = "2W";
-        break;
-    case PA_LEVEL_1W:
-        txt = "1W";
-        break;
-    case PA_LEVEL_0_5W:
-        txt = "0.5W";
-        break;
-    default:
-        txt = "FULL";
-        break;
-    }
-    // Draw top line
-    // UiLcdHy28_DrawStraightLine(POS_PW_IND_X,(POS_PW_IND_Y - 1),POS_DEMOD_MODE_MASK_W,LCD_DIR_HORIZONTAL,Blue);
-    UiLcdHy28_PrintTextCentered((POS_PW_IND_X),(POS_PW_IND_Y),POS_DEMOD_MODE_MASK_W,txt,color,Blue,0);
-}
-
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeKeyerSpeed
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
 static void UiDriver_DisplayKeyerSpeed(bool encoder_active)
 {
-    ushort 	color = encoder_active?White:Grey;
+    uint16_t 	color = encoder_active?White:Grey;
     const char* txt;
     char  txt_buf[5];
-
-    if(encoder_active)
-        color = White;
 
     txt = "WPM";
     snprintf(txt_buf,5,"%3d",ts.cw_keyer_speed);
@@ -4274,14 +4302,19 @@ static void UiDriver_DisplayKeyerSpeed(bool encoder_active)
     UiDriver_EncoderDisplay(1,2,txt, encoder_active, txt_buf, color);
 }
 
+static void UiDriver_DisplayRttySpeed(bool encoder_active)
+{
+    uint16_t  color = encoder_active?White:Grey;
+    UiDriver_EncoderDisplay(1,0,"BD", encoder_active, rtty_speeds[rtty_ctrl_config.speed_idx].label, color);
+}
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeAudioGain
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
+static void UiDriver_DisplayRttyShift(bool encoder_active)
+{
+    uint16_t  color = encoder_active?White:Grey;
+    UiDriver_EncoderDisplay(1,1,"SFT", encoder_active, rtty_shifts[rtty_ctrl_config.shift_idx].label, color);
+}
+
+
 static void UiDriver_DisplayLineInModeAndGain(bool encoder_active)
 {
     ushort 	color = encoder_active?White:Grey;
@@ -4326,13 +4359,6 @@ static void UiDriver_DisplayLineInModeAndGain(bool encoder_active)
     UiDriver_EncoderDisplay(1,2,txt, encoder_active, txt_buf, color);
 }
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeRfGain
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
 static void UiDriver_DisplayRfGain(bool encoder_active)
 {
     uint32_t color = encoder_active?White:Grey;
@@ -4548,82 +4574,47 @@ static void UiDriver_DisplayRit(bool encoder_active)
     UiDriver_EncoderDisplay(0,2,"RIT", encoder_active, temp, color);
 }
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverChangeFilterDisplay
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
-void UiDriver_DisplayFilter()
+static void UiDriver_DisplayDigitalMode()
 {
-    const char* filter_ptr;
-    uint32_t font_clr= filter_path_change?Black:White;
 
-    const char *filter_names[2];
+    ushort bgclr = ts.dvmode?Orange:Blue;
+    ushort color = digimodes[ts.digital_mode].enabled?(ts.dvmode?Black:White):Grey2;
 
-    AudioFilter_GetNamesOfFilterPath(ts.filter_path,filter_names);
-    if (filter_names[1] != NULL)
-    {
-        filter_ptr = filter_names[1];
-    }
-    else
-    {
-        filter_ptr = " ";
-    }
+    const char* txt = digimodes[ts.digital_mode].label;
 
-    UiDriver_LeftBoxDisplay(1,filter_names[0],filter_path_change,filter_ptr,font_clr, font_clr,false);
+    // Draw line for box
+    UiLcdHy28_DrawStraightLine(POS_DIGMODE_IND_X,(POS_DIGMODE_IND_Y - 1),LEFTBOX_WIDTH,LCD_DIR_HORIZONTAL,bgclr);
+    UiLcdHy28_PrintTextCentered((POS_DIGMODE_IND_X),(POS_DIGMODE_IND_Y),LEFTBOX_WIDTH,txt,color,bgclr,0);
+
+    fdv_clear_display();
 }
 
-//
-//
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverDisplayFilterBW
-//* Object              : Display/Update line under the Waterfall or Spectrum that graphically indicates filter bandwidth and relative position
-//* Input Parameters    : none
-//* Output Parameters   : none
-//* Functions called    :
-//*----------------------------------------------------------------------------
-//
-
-
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverUpdateUsbKeyboardStatus
-//* Object              :
-//* Input Parameters    :
-//* Output Parameters   :
-//* Functions called    :
-//*----------------------------------------------------------------------------
-/*static void UiDriverUpdateUsbKeyboardStatus()
+static void UiDriver_DisplayPowerLevel()
 {
-	// No change, nothing to process
-	if(kbs.new_state == kbs.old_state)
-		return;
+    ushort color = White;
+    const char* txt;
 
-	switch(kbs.new_state)
-	{
-		// Nothing connected
-		case 0:
-			UiLcdHy28_PrintText(POS_KBD_IND_X,POS_KBD_IND_Y,"KBD",Grey,Black,0);
-			break;
-
-		// Some device attached
-		case 1:
-			UiLcdHy28_PrintText(POS_KBD_IND_X,POS_KBD_IND_Y,"DEV",Grey,Black,0);
-			break;
-
-		// Keyboard detected
-		case 2:
-			UiLcdHy28_PrintText(POS_KBD_IND_X,POS_KBD_IND_Y,"KBD",Blue,Black,0);
-			break;
-
-		default:
-			break;
-	}
-
-	// Set as done
-	kbs.old_state = kbs.new_state;
-}*/
+    switch(ts.power_level)
+    {
+    case PA_LEVEL_5W:
+        txt = "5W";
+        break;
+    case PA_LEVEL_2W:
+        txt = "2W";
+        break;
+    case PA_LEVEL_1W:
+        txt = "1W";
+        break;
+    case PA_LEVEL_0_5W:
+        txt = "0.5W";
+        break;
+    default:
+        txt = "FULL";
+        break;
+    }
+    // Draw top line
+    UiLcdHy28_PrintTextCentered((POS_PW_IND_X),(POS_PW_IND_Y),POS_DEMOD_MODE_MASK_W,txt,color,Blue,0);
+}
 
 static void UiDriver_HandleSMeter()
 {
@@ -5938,7 +5929,7 @@ void UiDriver_MainHandler()
     CatDriver_HandleProtocol();
     // START CALLED AS OFTEN AS POSSIBLE
 #ifdef USE_FREEDV
-    if (ts.dvmode == true)
+    if (ts.dmod_mode == DEMOD_DIGI && ts.digital_mode == DigitalMode_FreeDV)
     {
         FreeDV_mcHF_HandleFreeDV();
     }
@@ -6005,6 +5996,7 @@ void UiDriver_MainHandler()
                 {
                     UiDriver_DisplayVoltage();
                 }
+
                 if (pwmt.undervoltage_detected == true) {
                     if (UiDriver_TimerExpireAndRewind(SCTimer_LEDBLINK, now, 64)) {
                         MchfBoard_GreenLed(LED_STATE_TOGGLE);

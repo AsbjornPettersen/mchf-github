@@ -97,6 +97,23 @@ const BandInfo bandInfo[] =
     { 0, 0, 0, "Gen" } // Generic Band
 };
 
+
+// The following descriptor table has to be in the order of the enum digital_modes_t in  radio_management.h
+// This table is stored in flash (due to const) and cannot be written to
+// for operational data per mode [r/w], use a different table with order of modes
+const digital_mode_desc_t digimodes[DigitalMode_Num_Modes] =
+{
+    { "DIGITAL" , true },
+    { "FreeDV"  , true },
+    { "RTTY"    , true },
+    { "FREEDV2" , false },
+    { "PSK"     , false },
+    { "SSTV"    , false },
+    { "WSPR A"  , false },
+    { "WSPR P"  , false },
+};
+
+
 /**
  * @brief returns the "real" frequency translation mode for a given transceiver state. This may differ from the configured one due to modulation demands
  *
@@ -252,7 +269,7 @@ uint32_t RadioManagement_Dial2TuneFrequency(const uint32_t dial_freq, uint8_t tx
     // Offset dial frequency if the RX/TX frequency translation is active and we are not transmitting in CW mode
     // In CW TX mode we do not use frequency translation, this permits to use the generated I or Q channel as audio sidetone
 
-    if(!((ts.dmod_mode == DEMOD_CW || (ts.dvmode == true)) && (txrx_mode == TRX_MODE_TX)))
+    if(!((ts.dmod_mode == DEMOD_CW || (ts.dmod_mode == DEMOD_DIGI && ts.digital_mode == DigitalMode_FreeDV)) && (txrx_mode == TRX_MODE_TX)))
     {
         tune_freq += AudioDriver_GetTranslateFreq();        // magnitude of shift is quadrupled at actual Si570 operating frequency
     }
@@ -625,11 +642,13 @@ void RadioManagement_SwitchTxRx(uint8_t txrx_mode, bool tune_mode)
             {
                 // Assure that TX->RX timer gets reset at the end of an element
                 // TR->RX audio un-muting timer and Audio/AGC De-Glitching handler
+#if 0
                 if (ts.tx_audio_source == TX_AUDIO_MIC && (ts.dmod_mode != DEMOD_CW))
                 {
-                    ts.audio_spkr_unmute_delay_count = SSB_RX_DELAY;  // set time delay in SSB mode with MIC
-                    ts.audio_processor_input_mute_counter = SSB_RX_DELAY;
+                    ts.audio_spkr_unmute_delay_count = VOICE_TX2RX_DELAY_DEFAULT;  // set time delay in SSB mode with MIC
+                    ts.audio_processor_input_mute_counter = VOICE_TX2RX_DELAY_DEFAULT;
                 }
+#endif
 
             }
             else
@@ -873,9 +892,9 @@ void RadioManagement_SetDemodMode(uint8_t new_mode)
 
     if (new_mode == DEMOD_DIGI)
     {
-        if (ts.digital_mode == 0)
+        if (ts.digital_mode == DigitalMode_None)
         {
-            ts.digital_mode = 1;
+            ts.digital_mode = DigitalMode_FreeDV;
             // TODOD: more clever selection of initial DV Mode, if none was previously selected
         }
         RadioManagement_ChangeCodec(ts.digital_mode,1);
@@ -933,8 +952,6 @@ uint8_t RadioManagement_GetBand(ulong freq)
     return band_scan;       // return with the band
 }
 
-const int ptt_break_time = 15;
-
 uint32_t RadioManagement_SSB_AutoSideBand(uint32_t freq) {
     uint32_t retval;
 
@@ -954,14 +971,17 @@ uint32_t RadioManagement_SSB_AutoSideBand(uint32_t freq) {
 }
 
 
+const int32_t ptt_debounce_time = 3; // n*10ms, delay for debouncing manually started TX (using the PTT button / input line)
+
+#define PTT_BREAK_IDLE (-1)
 void RadioManagement_HandlePttOnOff()
 {
-    static uint32_t ptt_break_timer = ptt_break_time;
+    static int64_t ptt_break_timer = PTT_BREAK_IDLE;
 
-    // Not when tuning
+    // not when tuning, in this case we are TXing already anyway until tune is being stopped
     if(ts.tune == false)
     {
-        // PTT on
+        // we are asked to start TX
         if(ts.ptt_req)
         {
             if(ts.txrx_mode == TRX_MODE_RX && (RadioManagement_IsTxDisabled() == false || ts.dmod_mode == DEMOD_CW))
@@ -978,24 +998,35 @@ void RadioManagement_HandlePttOnOff()
         {
             // When CAT driver "pressed" PTT skip auto return to RX
 
-            // PTT off for all non-CW modes
             if(ts.dmod_mode != DEMOD_CW || ts.tx_stop_req == true)
             {
-                // PTT flag on ?
+                // If we are in TX and ...
                 if(ts.txrx_mode == TRX_MODE_TX)
                 {
-                    // PTT line released ?
+                    // ... the PTT line is released ...
                     if(mchf_ptt_dah_line_pressed() == false)
                     {
-                        ptt_break_timer--;
+                        // ... we start the break timer if not started already!
+                        if (ptt_break_timer == PTT_BREAK_IDLE)
+                        {
+                            ptt_break_timer = ts.sysclock + ptt_debounce_time;
+                        }
                     }
-                    if(ptt_break_timer == 0 || ts.tx_stop_req == true) {
-                        // Back to RX
-                        RadioManagement_SwitchTxRx(TRX_MODE_RX,false);              // PTT
-                        ptt_break_timer = ptt_break_time;
+                    else
+                    {
+                        // ... but if not released we stop the break timer
+                        ptt_break_timer = PTT_BREAK_IDLE;
+                    }
+
+                    // ... if break time is over or we are forced to leave TX immediately ...
+                    if((ptt_break_timer < ts.sysclock && ptt_break_timer != PTT_BREAK_IDLE) || ts.tx_stop_req == true) {
+                        // ... go back to RX and ...
+                        RadioManagement_SwitchTxRx(TRX_MODE_RX,false);
+                        // ... stop the timer
+                        ptt_break_timer = PTT_BREAK_IDLE;
                     }
                 }
-                // if we are here the stop request has been processed
+                // if we are here a stop request has been processed completely
                 ts.tx_stop_req = false;
             }
         }
@@ -1046,61 +1077,68 @@ bool RadioManagement_IsApplicableDemodMode(uint32_t demod_mode)
     return retval;
 }
 
-
-uint32_t RadioManagement_NextDemodMode(uint32_t loc_mode, bool alternate_mode)
+/**
+ * @brief finds next related alternative modes for a given mode (e.g. for USB it returns  LSB)
+ * @returns next mode OR same mode if none found.
+ */
+uint32_t RadioManagement_NextAlternativeDemodMode(uint32_t loc_mode)
 {
-   uint32_t retval = loc_mode;
-   // default is to simply return the original mode
+    uint32_t retval = loc_mode;
+    // default is to simply return the original mode
+    switch(loc_mode)
+    {
+    case DEMOD_USB:
+        retval = DEMOD_LSB;
+        break;
+    case DEMOD_LSB:
+        retval = DEMOD_USB;
+        break;
+    case DEMOD_CW:
+        // FIXME: get rid of ts.cw_lsb
+        // better use it generally to indicate selected side band (also in SSB)
+        ts.cw_lsb = !ts.cw_lsb;
+        break;
+    case DEMOD_AM:
+        retval = DEMOD_SAM;
+        break;
+    case DEMOD_SAM:
+        ads.sam_sideband ++;
+        if (ads.sam_sideband > SAM_SIDEBAND_MAX)
+        {
+            ads.sam_sideband = SAM_SIDEBAND_BOTH;
+            retval = DEMOD_AM;
+        }
+        break;
+    case DEMOD_DIGI:
+        ts.digi_lsb = !ts.digi_lsb;
+        break;
+    case DEMOD_FM:
+        // toggle between narrow and wide fm
+        RadioManagement_FmDevSet5khz( !RadioManagement_FmDevIs5khz() );
+    }
+    // if there is no explicit alternative mode
+    // we return the original mode.
+    return retval;
+}
 
-    if(alternate_mode == true)
-    {
-            switch(loc_mode)
-            {
-            case DEMOD_USB:
-                retval = DEMOD_LSB;
-                break;
-            case DEMOD_LSB:
-                retval = DEMOD_USB;
-                break;
-            case DEMOD_CW:
-                // FIXME: get rid of ts.cw_lsb
-                // better use it generally to indicate selected side band (also in SSB)
-                ts.cw_lsb = !ts.cw_lsb;
-                break;
-            case DEMOD_AM:
-                   retval = DEMOD_SAM;
-                break;
-            case DEMOD_SAM:
-                ads.sam_sideband ++;
-                if (ads.sam_sideband > SAM_SIDEBAND_MAX)
-                {
-                    ads.sam_sideband = SAM_SIDEBAND_BOTH;
-                    retval = DEMOD_AM;
-                }
-                break;
-            case DEMOD_DIGI:
-                ts.digi_lsb = !ts.digi_lsb;
-                break;
-            case DEMOD_FM:
-                // toggle between narrow and wide fm
-                RadioManagement_FmDevSet5khz( !RadioManagement_FmDevIs5khz() );
-            }
-            // if there is no explicit alternative mode
-            // we return the original mode.
-    }
-    else
-    {
-        do {
-            retval++;
-            if (retval > DEMOD_MAX_MODE)
-            {
-                retval = 0;
-                // wrap around;
-            }
-        }    while (RadioManagement_IsApplicableDemodMode(retval) == false && retval != loc_mode);
-        // if we loop around to the initial mode, there is no other option than the original mode
-        // so we return it, otherwise we provide the new mode.
-    }
+/**
+ * @brief find the next "different" demodulation mode which is enabled.
+ * @returns new mode, or current mode if no other mode is available
+ */
+uint32_t RadioManagement_NextNormalDemodMode(uint32_t loc_mode)
+{
+    uint32_t retval = loc_mode;
+    // default is to simply return the original mode
+    do {
+        retval++;
+        if (retval > DEMOD_MAX_MODE)
+        {
+            retval = 0;
+            // wrap around;
+        }
+    }    while (RadioManagement_IsApplicableDemodMode(retval) == false && retval != loc_mode);
+    // if we loop around to the initial mode, there is no other option than the original mode
+    // so we return it, otherwise we provide the new mode.
 
     return retval;
 }
@@ -1416,3 +1454,4 @@ void RadioManagement_FmDevSet5khz(bool is5khz)
         ts.flags2 &= ~FLAGS2_FM_MODE_DEVIATION_5KHZ;
     }
 }
+
