@@ -1641,7 +1641,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
     case MENU_KEYER_MODE:   // Keyer mode
         var_change = UiDriverMenuItemChangeUInt8(var, mode, &ts.cw_keyer_mode,
                                               0,
-                                              CW_MODE_ULTIMATE,
+                                              CW_KEYER_MODE_ULTIMATE,
                                               CW_KEYER_MODE_IAM_B,
                                               1
                                              );
@@ -1651,13 +1651,13 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         case CW_KEYER_MODE_IAM_B:
             txt_ptr = "IAM_B";
             break;
-        case CW_MODE_IAM_A:
+        case CW_KEYER_MODE_IAM_A:
             txt_ptr = "IAM_A";
             break;
-        case CW_MODE_STRAIGHT:
+        case CW_KEYER_MODE_STRAIGHT:
             txt_ptr = "STR_K";
             break;
-        case CW_MODE_ULTIMATE:
+        case CW_KEYER_MODE_ULTIMATE:
             txt_ptr = "ULTIM";
             break;
         }
@@ -1720,7 +1720,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         {
             float freq[2] = { ts.cw_sidetone_freq, 0.0 };
 
-            softdds_setfreq_dbl(freq,ts.samp_rate,0);
+            softdds_configRunIQ(freq,ts.samp_rate,0);
             UiDriver_FrequencyUpdateLOandDisplay(false);
         }
         snprintf(options,32, "  %uHz", (uint)ts.cw_sidetone_freq);
@@ -3516,9 +3516,13 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
             clr = Green;
         }
         break;
-    case MENU_DEBUG_NEW_NB:
-        var_change = UiDriverMenuItemChangeEnableOnOffBool(var, mode, &ts.new_nb,0,options,&clr);
-        break;
+     case MENU_DEBUG_NEW_NB:
+         var_change = UiDriverMenuItemChangeEnableOnOffBool(var, mode, &ts.new_nb,0,options,&clr);
+         break;
+
+     case MENU_DEBUG_RTTY_ATC:
+         var_change = UiDriverMenuItemChangeEnableOnOffBool(var, mode, &ts.rtty_atc_enable,0,options,&clr);
+         break;
 
     case MENU_DIGITAL_MODE_SELECT:
         var_change = UiDriverMenuItemChangeUInt8(var, mode, &ts.digital_mode,0,DigitalMode_RTTY,0,1);
