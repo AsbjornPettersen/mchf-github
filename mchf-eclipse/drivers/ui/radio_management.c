@@ -33,6 +33,7 @@
 #include "audio_management.h"
 
 #include "cat_driver.h"
+#include "ui_spectrum.h"
 
 
 #include "ui_configuration.h"
@@ -43,6 +44,8 @@
 #include "cw_gen.h"
 #include "freedv_api.h"
 #include "codec2_fdmdv.h"
+
+#include "cw_decoder.h"
 
 #define SWR_SAMPLES_SKP             1   //5000
 #define SWR_SAMPLES_CNT             5//10
@@ -70,7 +73,7 @@ SWRMeter                    swrm;
 
 // ------------------------------------------------
 // Frequency public
-__IO DialFrequency               df;
+DialFrequency               df;
 
 
 #define BandInfoGenerate(BAND,SUFFIX,NAME) { TX_POWER_FACTOR_##BAND##_DEFAULT, BAND_FREQ_##BAND , BAND_SIZE_##BAND , NAME }
@@ -492,6 +495,38 @@ uint32_t RadioManagement_GetRXDialFrequency()
     return baseval + (ts.rit_value*20)*TUNE_MULT;
 }
 
+// globals used:
+// ts.trx_mode -> R / W
+// ts.band -> R
+// vfo[] -> r / w
+// df.tune_new -> r
+// ts.dmod_mode -> r
+// ts.cw_text_entry -> r
+// functions called:
+// RadioManagement_ValidateFrequencyForTX
+// RadioManagement_IsTxDisabled()
+// ts.audio_dac_muting_buffer_count -> r/w
+// ts.audio_dac_muting_flag = true; // let the audio being muted initially as long as we need it
+// ads.agc_holder -> w
+// ads.agc_val -> r
+// RadioManagement_DisablePaBias(); // kill bias to mute the HF output quickly
+// Board_RedLed(LED_STATE_ON); // TX
+// Board_GreenLed(LED_STATE_OFF);
+// Board_EnableTXSignalPath(true); // switch antenna to output and codec output to QSE mixer
+// RadioManagement_ChangeFrequency(false,df.tune_new/TUNE_MULT, txrx_mode_final);
+// uint8_t tx_band = RadioManagement_GetBand(tune_new/TUNE_MULT);
+// RadioManagement_PowerLevelChange(tx_band,ts.power_level);
+// RadioManagement_SetBandPowerFactor(tx_band);
+// AudioManagement_SetSidetoneForDemodMode(ts.dmod_mode,txrx_mode_final == TRX_MODE_RX?false:tune_mode);
+// Codec_SwitchTxRxMode(txrx_mode_final);
+// RadioManagement_SetPaBias();
+// ts.txrx_switch_audio_muting_timing -> r;
+// ts.audio_processor_input_mute_counter -> w;
+// ts.audio_dac_muting_buffer_count -> w
+// ts.audio_dac_muting_flag -> w;
+// ts.tx_audio_source -> r
+// ts.power_level -> r
+
 void RadioManagement_SwitchTxRx(uint8_t txrx_mode, bool tune_mode)
 {
     uint32_t tune_new;
@@ -902,6 +937,7 @@ void RadioManagement_SetDemodMode(uint8_t new_mode)
     else if (ts.dmod_mode == DEMOD_DIGI)
     {
             RadioManagement_ChangeCodec(ts.digital_mode,0);
+            fdv_clear_display();
     }
 
     if (new_mode == DEMOD_FM && ts.dmod_mode != DEMOD_FM)
@@ -914,8 +950,18 @@ void RadioManagement_SetDemodMode(uint8_t new_mode)
     AudioDriver_TxFilterInit(new_mode);
     AudioManagement_SetSidetoneForDemodMode(new_mode,false);
 
-
-    // Finally update public flag
+    if(ts.dmod_mode == DEMOD_CW && ts.cw_decoder_enable)
+    { 	// if old mode == DEMOD_CW and cw decoder is enabled:
+    	// clear WPM display to make room for other modes´ display features
+    	CW_Decoder_WPM_display(0);
+    	// clear tune helper for CW carrier
+    	ui_spectrum_init_cw_snap_display(0);
+    }
+    if(new_mode == DEMOD_CW && ts.cw_decoder_enable && cw_decoder_config.snap_enable)
+    {
+    	// draw init graphical CW carrier tuner helper
+    	ui_spectrum_init_cw_snap_display(1);
+    }    // Finally update public flag
     ts.dmod_mode = new_mode;
 
     if  (ads.af_disabled) { ads.af_disabled--; }

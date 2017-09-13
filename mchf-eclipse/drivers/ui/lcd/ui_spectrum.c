@@ -21,6 +21,8 @@
 #include "waterfall_colours.h"
 #include "radio_management.h"
 #include "rtty.h"
+#include "cw_decoder.h"
+
 
 // ------------------------------------------------
 // Spectrum display public
@@ -67,6 +69,7 @@ static const scope_scaling_info_t scope_scaling_factors[SCOPE_SCALE_NUM] =
 
 static void     UiSpectrum_DrawFrequencyBar();
 static void		UiSpectrum_CalculateDBm();
+void ui_spectrum_init_cw_snap_display (uint8_t visible);
 
 // FIXME: This is partially application logic and should be moved to UI and/or radio management
 // instead of monitoring change, changes should trigger update of spectrum configuration (from pull to push)
@@ -358,7 +361,10 @@ static void UiSpectrum_CreateDrawArea()
                 Grey,
                 RGB((COL_SPECTRUM_GRAD*2),(COL_SPECTRUM_GRAD*2),(COL_SPECTRUM_GRAD*2)),0);
     }
-
+    if(cw_decoder_config.snap_enable && ts.dmod_mode == DEMOD_CW)
+    {
+    	ui_spectrum_init_cw_snap_display(1);
+    }
 }
 
 void UiSpectrum_Clear()
@@ -486,8 +492,6 @@ static void    UiSpectrum_DrawScope(uint16_t *old_pos, float32_t *fft_new)
     UiMenu_MapColors(ts.scope_trace_colour, NULL, &clr_scope);
 
     uint16_t marker_line_pos[SPECTRUM_MAX_MARKER];
-
-    uint16_t marker_num = sd.marker_num > sd.marker_num_prev ? sd.marker_num : sd.marker_num_prev;
 
     for (uint16_t idx = 0; idx < SPECTRUM_MAX_MARKER; idx++)
     {
@@ -1169,6 +1173,182 @@ static void UiSpectrum_DisplayDbm()
     }
 }
 
+
+#define CW_snap_carrier_X	27 // central position of variable freq marker
+#define CW_snap_carrier_Y	122 // position of variable freq marker
+
+void ui_spectrum_init_cw_snap_display (uint8_t visible)
+{
+	int color = Green;
+	if(!visible)
+	{
+		color = Black;
+		// also erase yellow indicator
+        UiLcdHy28_DrawFullRect(0, CW_snap_carrier_Y, 6, 57, Black);
+	}
+	//Horizontal lines of box
+	UiLcdHy28_DrawStraightLine(0,
+    		CW_snap_carrier_Y + 6,
+            27,
+            LCD_DIR_HORIZONTAL,
+            color);
+	UiLcdHy28_DrawStraightLine(32,
+    		CW_snap_carrier_Y + 6,
+            27,
+            LCD_DIR_HORIZONTAL,
+            color);
+	UiLcdHy28_DrawStraightLine(0,
+    		CW_snap_carrier_Y - 1,
+            27,
+            LCD_DIR_HORIZONTAL,
+            color);
+	UiLcdHy28_DrawStraightLine(32,
+    		CW_snap_carrier_Y - 1,
+            27,
+            LCD_DIR_HORIZONTAL,
+            color);
+	// vertical lines of box
+	UiLcdHy28_DrawStraightLine(0,
+    		CW_snap_carrier_Y - 1,
+            8,
+            LCD_DIR_VERTICAL,
+            color);
+	UiLcdHy28_DrawStraightLine(58,
+    		CW_snap_carrier_Y - 1,
+            8,
+            LCD_DIR_VERTICAL,
+            color);
+#if 0
+    UiLcdHy28_DrawStraightLineDouble(((float32_t)POS_SPECTRUM_IND_X + roundf(left_filter_border_pos)), (POS_SPECTRUM_IND_Y + POS_SPECTRUM_FILTER_WIDTH_BAR_Y), roundf(width_pixel), LCD_DIR_HORIZONTAL, clr);
+    UiLcdHy28_DrawStraightLine( marker_line_pos[idx],
+            spec_top_y - spec_height_limit,
+            spec_height_limit,
+            LCD_DIR_VERTICAL,
+            sd.scope_centre_grid_colour_active);
+#endif
+}
+
+void ui_spectrum_cw_snap_display (float32_t delta)
+{
+	#define max_delta 140.0
+	#define divider 5.0
+	//    static float32_t old_delta = 0.0;
+	// delta is the offset from the carrier freq
+	// now we have to account for CW sidetones etc.
+
+//	delta = RadioManagement_GetTXDialFrequency()/TUNE_MULT;
+//	delta = RadioManagement_GetRXDialFrequency()/TUNE_MULT;
+    if(ts.cw_lsb)
+    {
+    	delta = delta + (float32_t)(ts.cw_sidetone_freq);
+    }
+    else
+    {
+    	delta = delta - (float32_t)(ts.cw_sidetone_freq);
+    }
+
+    static int old_delta_p = 0.0;
+    if(delta > max_delta)
+    {
+    	delta = max_delta;
+    }
+    else if(delta < -max_delta)
+    {
+    	delta = -max_delta;
+    }
+//    delta = 0.1 * delta + 0.9 * old_delta;
+
+    int delta_p = (int)(0.5 + (delta / divider));
+
+    if(delta_p != old_delta_p)
+    {
+	UiLcdHy28_DrawStraightLineDouble( CW_snap_carrier_X + old_delta_p + 1,
+    		CW_snap_carrier_Y,
+            6,
+            LCD_DIR_VERTICAL,
+            Black);
+
+	UiLcdHy28_DrawStraightLineDouble( CW_snap_carrier_X + delta_p + 1,
+    		CW_snap_carrier_Y,
+            6,
+            LCD_DIR_VERTICAL,
+            Yellow);
+//	old_delta = delta;
+	old_delta_p = delta_p;
+    }
+}
+
+
+void UiSpectrum_Calculate_snap(float32_t Lbin, float32_t Ubin, int posbin, float32_t bin_BW)
+{
+	if(ads.CW_signal) // this is only done, if there has been a pulse from the CW station that exceeds the threshold
+		// in the CW decoder section
+	{
+		static float32_t freq_old = 10000000.0;
+	float32_t help_freq = (float32_t)df.tune_old / ((float32_t)TUNE_MULT);
+	// 1. lowpass filter all the relevant bins over 2 to 20 FFTs (?)
+	// lowpass filtering already exists in the spectrum/waterfall display driver
+
+// 2. determine bin with maximum value inside these samples
+
+    // look for maximum value and save the bin # for frequency delta calculation
+    float32_t maximum = 0.0;
+    float32_t maxbin = 1.0;
+    float32_t delta1 = 0.0;
+    float32_t delta2 = 0.0;
+    float32_t delta = 0.0;
+
+    for (int c = (int)Lbin; c <= (int)Ubin; c++)   // search for FFT bin with highest value = carrier and save the no. of the bin in maxbin
+    {
+        if (maximum < sd.FFT_Samples[c])
+        {
+            maximum = sd.FFT_Samples[c];
+            maxbin = c;
+        }
+    }
+
+// 3. first frequency carrier offset calculation
+    // ok, we have found the maximum, now save first delta frequency
+//    delta1 = (maxbin - (float32_t)posbin) * bin_BW;
+    delta1 = ((maxbin + 1.0) - (float32_t)posbin) * bin_BW;
+
+// 4. second frequency carrier offset calculation
+
+    if(maxbin < 1.0)
+    {
+    	maxbin = 1.0;
+    }
+    float32_t bin1 = sd.FFT_Samples[(int)maxbin-1];
+    float32_t bin2 = sd.FFT_Samples[(int)maxbin];
+    float32_t bin3 = sd.FFT_Samples[(int)maxbin+1];
+
+    if (bin1+bin2+bin3 == 0.0) bin1= 0.00000001; // prevent divide by 0
+
+    // estimate frequency of carrier by three-point-interpolation of bins around maxbin
+    // formula by (Jacobsen & Kootsookos 2007) equation (4) P=1.36 for Hanning window FFT function
+
+//    delta2 = (bin_BW * (1.75 * (bin3 - bin1)) / (bin1 + bin2 + bin3));
+    delta2 = (bin_BW * (1.36 * (bin3 - bin1)) / (bin1 + bin2 + bin3));
+    if(delta2 > bin_BW) delta2 = 0.0;
+    delta = delta1 + delta2;
+
+    help_freq = help_freq + delta;
+    help_freq = 0.2 * help_freq + 0.8 * freq_old;
+    //help_freq = help_freq * ((float32_t)TUNE_MULT);
+    ads.snap_carrier_freq = (ulong) (help_freq);
+    freq_old = help_freq;
+    ui_spectrum_cw_snap_display (delta);
+    // this estimated carrier freq is then printed in the small
+    // frequency display by UiDriver_MainHandler
+
+/*
+		5. display delta + Rx-frequency in small freq display (like SAM freq)
+		6. new display
+	 * */
+	}
+}
+
+
 static void UiSpectrum_CalculateDBm()
 {
     // Variables for dbm display --> void calculate_dBm
@@ -1293,6 +1473,13 @@ static void UiSpectrum_CalculateDBm()
                 sd.FFT_Samples[SPEC_BUFF_LEN - i - 1] = sd.FFT_MagData[i - buff_len_int/4] * SCOPE_PREAMP_GAIN;	// get data
             }
 
+            // here would be the right place to start with the SNAP mode!
+            if(cw_decoder_config.snap_enable && ts.dmod_mode == DEMOD_CW)
+            {
+            	 UiSpectrum_Calculate_snap(Lbin, Ubin, posbin, bin_BW);
+
+            }
+
             float32_t sum_db = 0.0;
             // determine the sum of all the bin values in the passband
             for (int c = Lbin; c <= (int)Ubin; c++)   // sum up all the values of all the bins in the passband
@@ -1356,3 +1543,6 @@ static void UiSpectrum_CalculateDBm()
         UiSpectrum_DisplayDbm();
     }
 }
+
+
+
