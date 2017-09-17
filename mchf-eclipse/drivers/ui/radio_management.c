@@ -236,13 +236,7 @@ int32_t RadioManagement_GetCWDialOffset()
     switch(ts.cw_offset_mode)
     {
     case CW_OFFSET_USB_SHIFT:    // Yes - USB?
-        retval -= ts.cw_sidetone_freq;
-        // lower LO by sidetone amount
-        break;
     case CW_OFFSET_LSB_SHIFT:   // LSB?
-        retval += ts.cw_sidetone_freq;
-        // raise LO by sidetone amount
-        break;
     case CW_OFFSET_AUTO_SHIFT:  // Auto mode?  Check flag
         if(ts.cw_lsb)
         {
@@ -850,16 +844,11 @@ bool RadioManagement_IsPowerFactorReduce(uint32_t freq)
 
 }
 
-//*----------------------------------------------------------------------------
-//* Function Name       : UiDriverSetBandPowerFactor
-//* Object              : TX chain gain is not const for the 3-30 Mhz range
-//* Input Parameters    : so adjust here
-//* Output Parameters   :
 
-/* Depends on globals: ts.pwr_adj, ts.power_level, df.tune_new, ts.flags2 & FLAGS2_LOW_BAND_BIAS_REDUCE
+/*
+ * Depends on globals: ts.pwr_adj, ts.power_level, df.tune_new, ts.flags2 & FLAGS2_LOW_BAND_BIAS_REDUCE
  * Impacts globals:    ts.tx_power_factor
  */
-
 void RadioManagement_SetBandPowerFactor(uchar band)
 {
     float32_t   pf_bandvalue, pf_levelscale;    // used as a holder for percentage of power output scaling
@@ -937,7 +926,6 @@ void RadioManagement_SetDemodMode(uint8_t new_mode)
     else if (ts.dmod_mode == DEMOD_DIGI)
     {
             RadioManagement_ChangeCodec(ts.digital_mode,0);
-            fdv_clear_display();
     }
 
     if (new_mode == DEMOD_FM && ts.dmod_mode != DEMOD_FM)
@@ -950,18 +938,6 @@ void RadioManagement_SetDemodMode(uint8_t new_mode)
     AudioDriver_TxFilterInit(new_mode);
     AudioManagement_SetSidetoneForDemodMode(new_mode,false);
 
-    if(ts.dmod_mode == DEMOD_CW && ts.cw_decoder_enable)
-    { 	// if old mode == DEMOD_CW and cw decoder is enabled:
-    	// clear WPM display to make room for other modes´ display features
-    	CW_Decoder_WPM_display(0);
-    	// clear tune helper for CW carrier
-    	ui_spectrum_init_cw_snap_display(0);
-    }
-    if(new_mode == DEMOD_CW && ts.cw_decoder_enable && cw_decoder_config.snap_enable)
-    {
-    	// draw init graphical CW carrier tuner helper
-    	ui_spectrum_init_cw_snap_display(1);
-    }    // Finally update public flag
     ts.dmod_mode = new_mode;
 
     if  (ads.af_disabled) { ads.af_disabled--; }

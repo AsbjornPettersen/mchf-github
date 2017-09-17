@@ -1075,7 +1075,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
         {
             // now set the AGC parameters
             ts.agc_wdsp_switch_mode = 1; // set flag to 1 for parameter change
-            AudioDriver_SetupAGC();
+            AudioDriver_SetupAgcWdsp();
             UiMenu_RenderMenu(MENU_RENDER_ONLY);
         }
         if(ts.txrx_mode == TRX_MODE_TX) // Orange if in TX mode
@@ -1093,7 +1093,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                            );
         if(var_change)
         {
-            AudioDriver_SetupAGC();
+            AudioDriver_SetupAgcWdsp();
         }
         snprintf(options, 32, "  %ddB", ts.agc_wdsp_slope / 10);
         break;
@@ -1107,7 +1107,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                            );
         if(var_change)
         {
-            AudioDriver_SetupAGC();
+            AudioDriver_SetupAgcWdsp();
         }
         snprintf(options, 32, "  %ddB", ts.agc_wdsp_thresh);
         break;
@@ -1121,7 +1121,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                            );
         if(var_change)
         {
-            AudioDriver_SetupAGC();
+            AudioDriver_SetupAgcWdsp();
         }
         snprintf(options, 32, "  %ddB", ts.agc_wdsp_hang_thresh);
         break;
@@ -1135,7 +1135,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                           );
        if(var_change)
        {
-           AudioDriver_SetupAGC();
+           AudioDriver_SetupAgcWdsp();
        }
        snprintf(options, 32, "  %ums", ts.agc_wdsp_tau_decay[ts.agc_wdsp_mode]);
        break;
@@ -1149,7 +1149,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                           );
        if(var_change)
        {
-           AudioDriver_SetupAGC();
+           AudioDriver_SetupAgcWdsp();
        }
        snprintf(options, 32, "  %ums", ts.agc_wdsp_tau_hang_decay);
        break;
@@ -1173,7 +1173,7 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
                                            );
         if(var_change)
         {
-            AudioDriver_SetupAGC();
+            AudioDriver_SetupAgcWdsp();
         }
         snprintf(options, 32, "  %dms", ts.agc_wdsp_hang_time);
         break;
@@ -3625,10 +3625,13 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
 
      case MENU_CW_DECODER:
          var_change = UiDriverMenuItemChangeEnableOnOffBool(var, mode, &ts.cw_decoder_enable,0,options,&clr);
-         if(!ts.cw_decoder_enable)
+         if (var_change)
          {
-				CW_Decoder_WPM_display(0);
-				Board_RedLed(LED_STATE_OFF);
+             if (ts.dmod_mode == DEMOD_CW)
+             {
+                 UiDriver_UpdateDemodSpecificDisplayAfterParamChange();
+             }
+             Board_RedLed(LED_STATE_OFF);
          }
          break;
 
@@ -3638,6 +3641,13 @@ void UiMenu_UpdateItem(uint16_t select, uint16_t mode, int pos, int var, char* o
 
      case MENU_CW_DECODER_SNAP_ENABLE:
          var_change = UiDriverMenuItemChangeEnableOnOffBool(var, mode, &cw_decoder_config.snap_enable,0,options,&clr);
+         if (var_change)
+         {
+             if (ts.dmod_mode == DEMOD_CW)
+             {
+                 UiDriver_UpdateDemodSpecificDisplayAfterParamChange();
+             }
+         }
     	 break;
 
     case MENU_DIGITAL_MODE_SELECT:
